@@ -91,42 +91,42 @@ class ScrollableFrame(ttk.Frame):
 
 if __name__ == "__main__":
 
+    # https://www.youtube.com/watch?v=-rVA37OVDs8
+
     window = tk.Tk()
     window.geometry("600x600+300+300")
 
-    container = tk.Frame(window, width=400, bg="green")
-    canvas = tk.Canvas(container, width=200, bg="red")
-
-    scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
-    scrollable_frame = ttk.Frame(canvas, width=200)
-
-    scrollable_frame.bind(
-        "<Configure>",
-        lambda e: canvas.configure(
-            scrollregion=canvas.bbox("all")
-        )
-    )
-
-    canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-    canvas.configure(yscrollcommand=scrollbar.set)
-
-    for i in range(50):
-        ttk.Label(scrollable_frame, text="Sample scrolling label", width=200).pack()
-
-    container.pack(fill=tk.BOTH, expand=True)
-    canvas.pack(side="left", fill=tk.BOTH, expand=True)
-    scrollbar.pack(side="right", fill=tk.Y)
-
-    # frame1 = tk.Frame(master=window, width=400, height=1000, bg="red")
-    # frame1.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
+    # container = tk.Frame(window, width=400, bg="green")
+    # canvas = tk.Canvas(container, width=200, height=600, bg="red")
+    #
+    # scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
+    # scrollable_frame = ttk.Frame(canvas, width=200, height=600)
+    #
+    # scrollable_frame.bind(
+    #     "<Configure>",
+    #     lambda e: canvas.configure(
+    #         scrollregion=canvas.bbox("all")
+    #     )
+    # )
+    #
+    # canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+    # canvas.configure(yscrollcommand=scrollbar.set)
+    #
+    # # for i in range(50):
+    # #     ttk.Label(scrollable_frame, text="Sample scrolling label", width=200).pack()
     #
     # columns = ('first_name', 'last_name', 'email')
-    # tree = ttk.Treeview(frame1, columns=columns, show='headings')
-    # tree.pack(fill=tk.BOTH, expand=True)
+    # tree = ttk.Treeview(scrollable_frame, columns=columns, show='headings', height=600)
     #
     # tree.heading('first_name', text='First Name')
     # tree.heading('last_name', text='Last Name')
     # tree.heading('email', text='Email')
+    #
+    #
+    # container.pack(fill=tk.BOTH, expand=True)
+    # canvas.pack(side="left", fill=tk.BOTH, expand=True)
+    # scrollbar.pack(side="right", fill=tk.Y)
+    # tree.pack(fill=tk.BOTH, expand=True)
     #
     # # add some data
     # contacts = []
@@ -134,12 +134,40 @@ if __name__ == "__main__":
     #     contacts.append((f'first {n}', f'last {n}', f'email{n}@example.com'))
     # for contact in contacts:
     #     tree.insert('', tk.END, values=contact)
-    #
-    # frame2 = tk.Frame(master=window, width=400, bg="yellow")
-    # frame2.pack(fill=tk.BOTH, side=tk.TOP, expand=True)
-    #
-    # frame3 = tk.Frame(master=window, width=400, bg="blue")
-    # frame3.pack(fill=tk.BOTH, side=tk.TOP, expand=True)
+
+
+    # frame
+    frame1 = tk.Frame(master=window)
+    frame1.pack(pady=20, fill=tk.BOTH, side=tk.LEFT, expand=True)
+
+    # scroll bar
+    tree_scroll = tk.Scrollbar(frame1)
+    tree_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+
+    # tree view
+    columns = ('first_name', 'last_name', 'email')
+    tree = ttk.Treeview(frame1, columns=columns, show='headings', yscrollcommand=tree_scroll.set)
+    tree.pack(fill=tk.BOTH, expand=True)
+
+    # configure scroll bar
+    tree_scroll.config(command=tree.yview)
+
+    tree.heading('first_name', text='First Name')
+    tree.heading('last_name', text='Last Name')
+    tree.heading('email', text='Email')
+
+    # add some data
+    contacts = []
+    for n in range(1, 100):
+        contacts.append((f'first {n}', f'last {n}', f'email{n}@example.com'))
+    for contact in contacts:
+        tree.insert('', tk.END, values=contact)
+
+    frame2 = tk.Frame(master=window, width=400, bg="yellow")
+    frame2.pack(fill=tk.BOTH, side=tk.TOP, expand=True)
+
+    frame3 = tk.Frame(master=window, width=400, bg="blue")
+    frame3.pack(fill=tk.BOTH, side=tk.TOP, expand=True)
 
     window.mainloop()
 
