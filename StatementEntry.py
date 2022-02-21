@@ -47,7 +47,7 @@ class StatementEntry:
                  seq_no: int = 0,                   \
                  included_weekly: bool = False,             \
                  included_monthly: bool = False,            \
-                 description: str = ""):
+                 description: str = "") -> None:
         self._entry_type = entry_type
         self._amount = amount
         self._balance = balance
@@ -77,11 +77,11 @@ class StatementEntry:
         return self._entry_type
 
     @property
-    def entry_type_str(self):
+    def entry_type_str(self) -> str:
         return str(self._entry_type)
 
     @entry_type.setter
-    def entry_type(self, value):
+    def entry_type(self, value) -> None:
         self._entry_type = value
 
     # -----------------------------------------------------------------------
@@ -91,14 +91,14 @@ class StatementEntry:
         return self._amount
 
     @property
-    def amount_str(self):
+    def amount_str(self) -> str:
         if self._amount < 0:
             return '-£{:,.2f}'.format(-self._amount)
         else:
             return '£{:,.2f}'.format(self._amount)
 
     @amount.setter
-    def amount(self, value):
+    def amount(self, value) -> None:
         self._amount = value
 
     # -----------------------------------------------------------------------
@@ -108,14 +108,14 @@ class StatementEntry:
         return self._balance
 
     @property
-    def balance_str(self):
+    def balance_str(self) -> str:
         if self._balance < 0:
             return '-£{:,.2f}'.format(-self._balance)
         else:
             return '£{:,.2f}'.format(self._balance)
 
     @balance.setter
-    def balance(self, value):
+    def balance(self, value) -> None:
         self._balance = value
 
     # -----------------------------------------------------------------------
@@ -125,11 +125,11 @@ class StatementEntry:
         return self._date
 
     @property
-    def date_str(self):
+    def date_str(self) -> str:
         return '{:02d}\\{:02d}\\{:02d}'.format( self._date.day,  self._date.month, self._date.year)
 
     @date.setter
-    def x(self, value):
+    def x(self, value) -> None:
         self._date = value
 
     # -----------------------------------------------------------------------
@@ -139,11 +139,11 @@ class StatementEntry:
         return self._week_no
 
     @property
-    def week_no_str(self):
+    def week_no_str(self) -> str:
             return '{}'.format(self._week_no)
 
     @week_no.setter
-    def week_no(self, value):
+    def week_no(self, value) -> None:
         self._week_no = value
 
     # -----------------------------------------------------------------------
@@ -153,11 +153,11 @@ class StatementEntry:
         return self._seq_no
 
     @property
-    def seq_no_str(self):
+    def seq_no_str(self) -> str:
             return '{}'.format(self._seq_no)
 
     @seq_no.setter
-    def seq_no(self, value):
+    def seq_no(self, value) -> None:
         self._seq_no = value
 
     # -----------------------------------------------------------------------
@@ -167,14 +167,14 @@ class StatementEntry:
         return self._included_weekly
 
     @property
-    def included_weekly_str(self):
+    def included_weekly_str(self) -> str:
         if self._included_weekly:
             return "*"
         else:
             return ""
 
     @included_weekly.setter
-    def included_weekly(self, value):
+    def included_weekly(self, value) -> None:
         self._included_weekly = value
 
     # -----------------------------------------------------------------------
@@ -184,14 +184,14 @@ class StatementEntry:
         return self._included_monthly
 
     @property
-    def included_monthly_str(self):
+    def included_monthly_str(self) -> str:
         if self._included_monthly:
             return "*"
         else:
             return ""
 
     @included_monthly.setter
-    def included_monthly(self, value):
+    def included_monthly(self, value) -> None:
         self._included_monthly = value
 
     # -----------------------------------------------------------------------
@@ -218,7 +218,7 @@ class StatementEntry:
     # v1.20 - this python version, comma separated with double quotes around each field,
     #           currency has currency symbol and thousand delimiters
     #
-    def from_csv(self, csvstr: str, ver: int):
+    def from_csv(self, csvstr: str, ver: int) -> None:
         if ver == 1.1:
             return self.from_csv_v1_10(csvstr)
         elif ver == 1.2:
@@ -226,7 +226,7 @@ class StatementEntry:
 
     # -----------------------------------------------------------------------
     # parse data from CSV string taken from file V1.10
-    def from_csv_v1_10(self, csvstr: str):
+    def from_csv_v1_10(self, csvstr: str) -> None:
 
         # Santander Current Account, -£1.10, £48481.19, 10/8/2021 Tue, 344, 240, *, *, CARD PAYMENT TO MIPERMIT
         ts = csvstr.split(',', 6)
@@ -254,7 +254,7 @@ class StatementEntry:
 
     # -----------------------------------------------------------------------
     # parse data from CSV string taken from file V1.20
-    def from_csv_v1_20(self, csvstr: str) -> bool:
+    def from_csv_v1_20(self, csvstr: str) -> None:
 
         # tokenise csv line
         reader = csv.reader([csvstr], delimiter=',')
