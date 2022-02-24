@@ -210,6 +210,13 @@ class StatementEntry:
             self._description)
 
     # -----------------------------------------------------------------------
+    # creates a list of the displayable values
+    def to_str_list(self) -> []:
+        return [self.entry_type_str, self.amount_str, self.balance_str, self.date_str, \
+                self._description, self.week_no_str, self.included_weekly_str, self.included_monthly_str, \
+                self.seq_no_str]
+
+    # -----------------------------------------------------------------------
     # read from a line of csv
     #
     # v1.10 - c# spend reckoner file, comma separator, currency has no comma delimiters or currency symbol
@@ -218,11 +225,11 @@ class StatementEntry:
     # v1.20 - this python version, comma separated with double quotes around each field,
     #           currency has currency symbol and thousand delimiters
     #
-    def from_csv(self, csvstr: str, ver: int) -> None:
+    def from_csv(self, csvstr: str, ver: float) -> None:
         if ver == 1.1:
-            return self.from_csv_v1_10(csvstr)
+            self.from_csv_v1_10(csvstr)
         elif ver == 1.2:
-            return self.from_csv_v1_20(csvstr)
+            self.from_csv_v1_20(csvstr)
 
     # -----------------------------------------------------------------------
     # parse data from CSV string taken from file V1.10
