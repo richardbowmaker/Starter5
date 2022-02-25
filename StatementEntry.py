@@ -4,6 +4,7 @@ import csv
 from datetime import date
 from enum import Enum
 import locale
+from Logger import *
 
 class StatementEntryType(Enum):
     NONE = 0
@@ -22,6 +23,9 @@ class StatementEntryType(Enum):
             return "Cashplus"
         else:
             return "?"
+
+    def __lt__(self, other):
+        return self.value < other.value
 
     def from_str(self, text: str):
         if text.lower() == "Santander Credit Card".lower():
@@ -69,6 +73,12 @@ class StatementEntry:
             self.week_no_str,           \
             self.seq_no_str,            \
             self._description)
+
+    # -----------------------------------------------------------------------
+    def __eq__(self, other) -> bool:
+        return self.date == other.date and \
+                self.entry_type == other.entry_type and \
+                self.seq_no == other.seq_no
 
     # -----------------------------------------------------------------------
     # entry type accessors
@@ -126,7 +136,9 @@ class StatementEntry:
 
     @property
     def date_str(self) -> str:
-        return '{:02d}\\{:02d}\\{:02d}'.format( self._date.day,  self._date.month, self._date.year)
+        dow = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+        return '{:02d}/{:02d}/{:02d} {}'.format(self._date.day,  self._date.month, self._date.year,
+                                                dow[self._date.weekday()])
 
     @date.setter
     def x(self, value) -> None:
@@ -198,7 +210,7 @@ class StatementEntry:
     # create a line of csv, comma separated with double quotes around each field
     # as the current fields have comma delimiters
     def to_csv(self) -> str:
-        return '\"{}\",\"{}\",\"{},\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\"'.format( \
+        return '\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\"'.format( \
             str(self._entry_type), \
             self.amount_str, \
             self.balance_str, \
@@ -225,75 +237,95 @@ class StatementEntry:
     # v1.20 - this python version, comma separated with double quotes around each field,
     #           currency has currency symbol and thousand delimiters
     #
-    def from_csv(self, csvstr: str, ver: float) -> None:
+    def from_csv(self, csvstr: str, ver: float) -> bool:
         if ver == 1.1:
-            self.from_csv_v1_10(csvstr)
-        elif ver == 1.2:
-            self.from_csv_v1_20(csvstr)
+            return self.from_csv_v1_10(csvstr)
+        elif ver == 1.2 or ver == 1.3:
+            return self.from_csv_v1_20(csvstr)
 
     # -----------------------------------------------------------------------
     # parse data from CSV string taken from file V1.10
-    def from_csv_v1_10(self, csvstr: str) -> None:
+    def from_csv_v1_10(self, csvstr: str) -> bool:
 
-        # Santander Current Account, -£1.10, £48481.19, 10/8/2021 Tue, 344, 240, *, *, CARD PAYMENT TO MIPERMIT
-        ts = csvstr.split(',', 6)
+        try:
 
-        # type
-        self._entry_type = StatementEntryType.NONE.from_str(ts[0].strip())
-        # amount
-        self._amount = locale.atof(ts[1].replace('£', '').replace(',', ''))
+            # Santander Current Account, -£1.10, £48481.19, 10/8/2021 Tue, 344, 240, *, *, CARD PAYMENT TO MIPERMIT
+            ts = csvstr.split(',', 6)
 
-        # balance
-        self._balance = locale.atof(ts[2].replace('£', '').replace(',', ''))
+            # type
+            self._entry_type = StatementEntryType.NONE.from_str(ts[0].strip())
+            # amount
+            self._amount = locale.atof(ts[1].replace('£', '').replace(',', ''))
 
-        # date
-        ds = ts[3].strip().split(' ')[1].split('/')
-        self._date = date(int(ds[2]), int(ds[1]), int(ds[0]))
+            # balance
+            self._balance = locale.atof(ts[2].replace('£', '').replace(',', ''))
 
-        # week no
-        self._week_no = int(ts[4])
+            # date
+            ds = ts[3].strip().split(' ')[1].split('/')
+            self._date = date(int(ds[2]), int(ds[1]), int(ds[0]))
 
-        # id
-        self._seq_no = int(ts[5])
+            # week no
+            self._week_no = int(ts[4])
 
-        # description
-        self._description = ts[6].strip()
+            # id
+            self._seq_no = int(ts[5])
+
+            # description
+            self._description = ts[6].strip()
+
+            return True
+
+        except ValueError as e:
+            log_error(repr(e))
+            return False
 
     # -----------------------------------------------------------------------
     # parse data from CSV string taken from file V1.20
-    def from_csv_v1_20(self, csvstr: str) -> None:
+    def from_csv_v1_20(self, csvstr: str) -> bool:
 
-        # tokenise csv line
-        reader = csv.reader([csvstr], delimiter=',')
-        ts = next(reader)
+        try:
 
-        # type
-        self._entry_type = StatementEntryType.NONE.from_str(ts[0].strip())
-        # amount
-        self._amount = locale.atof(ts[1].replace('£', '').replace(',', ''))
+            # tokenise csv line
+            reader = csv.reader([csvstr], delimiter=',')
+            ts = next(reader)
 
-        # balance
-        self._balance = locale.atof(ts[2].replace('£', '').replace(',', ''))
+            # type
+            self._entry_type = StatementEntryType.NONE.from_str(ts[0].strip())
 
-        # date
-        ds = ts[3].split(' ')[1].split('/')
-        self._date = date(int(ds[2]), int(ds[1]), int(ds[0]))
+            # amount
+            self._amount = locale.atof(ts[1].replace('£', '').replace(',', '').strip())
 
-        # week no
-        self._week_no = int(ts[4])
+            # balance
+            s = ts[2].replace('£', '').replace(',', '').strip()
+            if len(s) > 0:
+                self._balance = locale.atof(s)
+            else:
+                self._balance = 0
 
-        # id
-        self._seq_no = int(ts[5])
+            # date
+            ds = ts[3].strip().split(' ')[0].split('/')
+            self._date = date(int(ds[2]), int(ds[1]), int(ds[0]))
 
-        # included weekly
-        self._included_weekly = bool(ts[6].strip() == "*")
+            # week no
+            self._week_no = int(ts[4])
 
-        # included weekly
-        self._included_monthly = bool(ts[7].strip() == "*")
+            # id
+            self._seq_no = int(ts[5])
 
-        # description
-        self._description = ts[8]
+            # included weekly
+            self._included_weekly = bool(ts[6].strip() == "*")
 
+            # included weekly
+            self._included_monthly = bool(ts[7].strip() == "*")
+
+            # description
+            self._description = ts[8].strip()
+
+            return True
+
+        except ValueError as e:
+            log_error(repr(e))
+            return False
 
 
 

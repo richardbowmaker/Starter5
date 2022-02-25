@@ -11,14 +11,12 @@ import Data as Data
 # def LogInfo(text: str) ->None:
 #     logger.insert("end", text)
 
-
-
 if __name__ == "__main__":
 
     # https://www.youtube.com/watch?v=-rVA37OVDs8
 
     window = tk.Tk()
-    window.geometry("1000x600")
+    window.geometry("1200x600")
 
     # ----------------------------------------------------
     # frame1 has 3 data views in a tabbed control
@@ -26,7 +24,7 @@ if __name__ == "__main__":
     # tab2 = tree view, weekly summary
     # tab3 = tree view, monthly summary
 
-    frame1 = tk.Frame(master=window, width=300)
+    frame1 = tk.Frame(master=window, width=600)
     frame1.pack(pady=20, fill=tk.BOTH, side=tk.LEFT, expand=True)
     frame2 = tk.Frame(master=window, width=400)
     frame2.pack(fill=tk.BOTH, side=tk.TOP, expand=True)
@@ -71,13 +69,13 @@ if __name__ == "__main__":
 
     # --------------------------------------------------
     #
-    Data.read_file('E:\\_Ricks\\Python\\Starter5\\statement.txt')
-
+    Data.read_file('E:\\_Ricks\\Python\\Starter5\\statement_v130.txt')
+    # Data.write_file('E:\\_Ricks\\Python\\Starter5\\statement_v130.txt')
     # --------------------------------------------------
     # all statement entries
 
-    # weekly tree scroll bar
-    tree_all_scroll = tk.Scrollbar(tab_weekly)
+    # all tree scroll bar
+    tree_all_scroll = tk.Scrollbar(tab_all)
     tree_all_scroll.pack(side=tk.RIGHT, fill=tk.Y)
 
     columns = [     ['type',        'Type',         175],
@@ -101,8 +99,8 @@ if __name__ == "__main__":
     tree_all_scroll.config(command=tree_all.yview)
 
     # add some data
-
-    tree_all.insert('', tk.END, iid=0, values=Data.statement_entries[0].to_str_list(), open=False)
+    for se in Data.statement_entries:
+        tree_all.insert('', tk.END, values=se.to_str_list(), open=False)
 
     # --------------------------------------------------
     # weekly summary tree view
