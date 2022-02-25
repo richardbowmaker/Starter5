@@ -280,7 +280,7 @@ class StatementEntry:
             return False
 
     # -----------------------------------------------------------------------
-    # parse data from CSV string taken from file V1.20
+    # parse data from CSV string taken from file V1.20 and V1.30
     def from_csv_v1_20(self, csvstr: str) -> bool:
 
         try:

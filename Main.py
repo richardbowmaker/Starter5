@@ -56,16 +56,6 @@ if __name__ == "__main__":
 
     # initialise logger
     set_logger_listbox(logger)
-    log_info('info')
-    log_error('error')
-    log_info('info')
-    log_error('error')
-    log_info('info')
-    log_error('error')
-    log_info('info')
-    log_error('error')
-    se = StatementEntry()
-    log_info(se)
 
     # --------------------------------------------------
     #
@@ -78,15 +68,15 @@ if __name__ == "__main__":
     tree_all_scroll = tk.Scrollbar(tab_all)
     tree_all_scroll.pack(side=tk.RIGHT, fill=tk.Y)
 
-    columns = [     ['type',        'Type',         175],
-                    ['amount',      'Amount',        75],
-                    ['balance',     'Balance',       75],
-                    ['date',        'Date',          75],
-                    ['description', 'Description',  200],
-                    ['week_no',     'Week',          50],
-                    ['weekly',      'Weekly',        25],
-                    ['monthly',     'Monthly',       25],
-                    ['seq_no',      'Seq',           40]]
+    columns = [['type',        'Type',         175],
+               ['amount',      'Amount',        75],
+               ['balance',     'Balance',       75],
+               ['date',        'Date',          75],
+               ['description', 'Description',  200],
+               ['week_no',     'Week',          50],
+               ['weekly',      'Weekly',        25],
+               ['monthly',     'Monthly',       25],
+               ['seq_no',      'Seq',           40]]
 
     # weekly tree view
     tree_all = ttk.Treeview(tab_all, columns=[c[0] for c in columns], show='headings', yscrollcommand=tree_all_scroll.set)
@@ -108,26 +98,29 @@ if __name__ == "__main__":
     tree_weekly_scroll = tk.Scrollbar(tab_weekly)
     tree_weekly_scroll.pack(side=tk.RIGHT, fill=tk.Y)
 
+    columns = [['week_no',      'Week',          50],
+               ['wdate',        'Date',          75],
+               ['total',        'Total',         75],
+               ['transactions', 'Transactions',  75],
+               ['type',         'Type',         175],
+               ['amount',       'Amount',        75],
+               ['balance',      'Balance',       75],
+               ['date',         'Date',          75],
+               ['description',  'Description',  200],
+               ['weekly',       'Weekly',        25],
+               ['monthly',      'Monthly',       25],
+               ['seq_no',       'Seq',           40]]
+
     # weekly tree view
-    columns = ('first_name', 'last_name', 'email')
-    tree_weekly = ttk.Treeview(tab_weekly, columns=columns, show='headings', yscrollcommand=tree_weekly_scroll.set)
+    tree_weekly = ttk.Treeview(tab_weekly, columns=[c[0] for c in columns], show='headings',
+                               yscrollcommand=tree_weekly_scroll.set)
     tree_weekly.pack(fill=tk.BOTH, expand=True)
-    tree_weekly.column(0, minwidth=100, width=100, stretch=False)
-    tree_weekly.column(1, minwidth=200, width=200, stretch=False)
-    tree_weekly.column(2, minwidth=200, width=200, stretch=False)
-    tree_weekly.heading('first_name', text='First Name')
-    tree_weekly.heading('last_name', text='Last Name')
-    tree_weekly.heading('email', text='Email')
+    for n in range(len(columns)):
+        tree_weekly.column(n, minwidth=columns[n][2], width=columns[n][2], stretch=False)
+        tree_weekly.heading(columns[n][0], text=columns[n][1])
 
     # configure scroll bar
     tree_weekly_scroll.config(command=tree_weekly.yview)
-
-    # add some data
-    contacts = []
-    for n in range(1, 100):
-        contacts.append((f'weekly {n}', f'last {n}', f'email{n}@example.com'))
-    for contact in contacts:
-        tree_weekly.insert('', tk.END, values=contact)
 
     # --------------------------------------------------
     # monthly summary tree view
@@ -135,35 +128,37 @@ if __name__ == "__main__":
     tree_monthly_scroll = tk.Scrollbar(tab_monthly)
     tree_monthly_scroll.pack(side=tk.RIGHT, fill=tk.Y)
 
+    columns = [['month',        'Month',         50],
+               ['total',        'Total',         75],
+               ['transactions', 'Transactions',  75],
+               ['type',         'Type',         175],
+               ['amount',       'Amount',        75],
+               ['balance',      'Balance',       75],
+               ['date',         'Date',          75],
+               ['description',  'Description',  200],
+               ['weekly',       'Weekly',        25],
+               ['monthly',      'Monthly',       25],
+               ['seq_no',       'Seq',           40]]
+
     # weekly tree view
-    columns = ('first_name', 'last_name', 'email')
-    tree_monthly = ttk.Treeview(tab_monthly, columns=columns, show='tree headings', yscrollcommand=tree_monthly_scroll.set)
+    tree_monthly = ttk.Treeview(tab_monthly, columns=[c[0] for c in columns], show='headings',
+                                yscrollcommand=tree_monthly_scroll.set)
     tree_monthly.pack(fill=tk.BOTH, expand=True)
-    tree_monthly.column('#0', minwidth=25, width=25, stretch=False)
-    tree_monthly.column(0, minwidth=100, width=100, stretch=False)
-    tree_monthly.column(1, minwidth=200, width=200, stretch=False)
-    tree_monthly.column(2, minwidth=200, width=200, stretch=False)
-    tree_monthly.heading('first_name', text='First Name')
-    tree_monthly.heading('last_name', text='Last Name')
-    tree_monthly.heading('email', text='Email')
+    for n in range(len(columns)):
+        tree_monthly.column(n, minwidth=columns[n][2], width=columns[n][2], stretch=False)
+        tree_monthly.heading(columns[n][0], text=columns[n][1])
 
     # configure scroll bar
     tree_monthly_scroll.config(command=tree_monthly.yview)
 
-    tree_monthly.insert('', tk.END, iid=0, values=('a one', 'two', 'three'), open=False)
-    tree_monthly.insert('', tk.END, iid=1, values=('b one', 'two', 'three'), open=False)
-    tree_monthly.insert('', tk.END, iid=2, values=('c one', 'two', 'three'), open=False)
-    tree_monthly.insert('', tk.END, iid=3, values=('c one', 's-two', 's-three'), open=False)
-    tree_monthly.move(3, 1, 0)
-
-    # add some data
-    # contacts = []
-    # for n in range(1, 100):
-    #     contacts.append((f'monthly {n}', f'last {n}', f'email{n}@example.com'))
-    # for contact in contacts:
-    #     tree_monthly.insert('', tk.END, values=contact)
+    # tree_monthly.insert('', tk.END, iid=0, values=('a one', 'two', 'three'), open=False)
+    # tree_monthly.insert('', tk.END, iid=1, values=('b one', 'two', 'three'), open=False)
+    # tree_monthly.insert('', tk.END, iid=2, values=('c one', 'two', 'three'), open=False)
+    # tree_monthly.insert('', tk.END, iid=3, values=('c one', 's-two', 's-three'), open=False)
+    # tree_monthly.move(3, 1, 0)
 
     window.mainloop()
+
 
 
 

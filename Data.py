@@ -72,6 +72,7 @@ def read_file(file_name: str) -> bool:
                 log_error(f'Error parsing line ({n}) : \'{ls[n]}\'')
                 return False
 
+        log_info(f'Read {len(statement_entries)} entries from file \'{file_name}\'')
         return True
 
     except FileNotFoundError:
@@ -105,7 +106,14 @@ def write_file (file_name: str) -> bool:
 # add entry to entries list in the correct order
 def add_statement_entry(se: StatementEntry):
     for n in range(len(statement_entries)):
-        if compare_statement_entries(se, statement_entries[n]) < 0:
+        r = compare_statement_entries(se, statement_entries[n])
+        if r == -1:
             statement_entries.insert(n, se)
             return
+        elif r == 0:
+            # ignore matching entries
+            return
     statement_entries.append(se)
+
+
+
