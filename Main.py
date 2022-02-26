@@ -1,9 +1,9 @@
 
 import tkinter as tk
 from tkinter import ttk
-from StatementEntry import *
-from Logger import *
-import Data as Data
+import StatementData as StatementData
+import Logger as Logger
+import sys
 
 # -------------------------------------------
 # logger functions
@@ -55,12 +55,14 @@ if __name__ == "__main__":
     logger_scroll.config(command=logger.yview)
 
     # initialise logger
-    set_logger_listbox(logger)
+    Logger.set_logger_listbox(logger)
+
+    Logger.log_info(f'Python version {sys.version_info[0]}.{sys.version_info[1]}')
 
     # --------------------------------------------------
     #
-    Data.read_file('E:\\_Ricks\\Python\\Starter5\\statement_v130.txt')
-    # Data.write_file('E:\\_Ricks\\Python\\Starter5\\statement_v130.txt')
+    StatementData.read_file('E:\\_Ricks\\Python\\Starter5\\statement_v130.txt')
+    # StatementData.write_file('E:\\_Ricks\\Python\\Starter5\\statement_v130.txt')
     # --------------------------------------------------
     # all statement entries
 
@@ -89,7 +91,7 @@ if __name__ == "__main__":
     tree_all_scroll.config(command=tree_all.yview)
 
     # add some data
-    for se in Data.statement_entries:
+    for se in StatementData.statement_entries:
         tree_all.insert('', tk.END, values=se.to_str_list(), open=False)
 
     # --------------------------------------------------

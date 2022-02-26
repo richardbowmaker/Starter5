@@ -3,14 +3,26 @@
 import csv
 from datetime import date
 from enum import Enum
-import locale
-from Logger import *
+import locale as locale
+import Logger as Logger
+
+
+# forward ref
+class StatementEntry:
+    pass
+
+
+# the database of statement data
+statement_entries: list = []
+weekly_statement: list = []
+monthly_statement: list = []
+
 
 class StatementEntryType(Enum):
     NONE = 0
     SANTANDER_CREDIT_CARD = 1
     SANTANDER_CURRENT_ACCOUNT = 2
-    CASHPLUS = 3
+    CASH_PLUS = 3
 
     def __str__(self):
         if self == StatementEntryType.NONE:
@@ -19,7 +31,7 @@ class StatementEntryType(Enum):
             return "Santander Credit Card"
         elif self == StatementEntryType.SANTANDER_CURRENT_ACCOUNT:
             return "Santander Current Account"
-        elif self == StatementEntryType.CASHPLUS:
+        elif self == StatementEntryType.CASH_PLUS:
             return "Cashplus"
         else:
             return "?"
@@ -33,24 +45,111 @@ class StatementEntryType(Enum):
         elif text.lower() == "Santander Current Account".lower():
             return StatementEntryType.SANTANDER_CURRENT_ACCOUNT
         elif text.lower() == "Cashplus".lower():
-            return StatementEntryType.CASHPLUS
+            return StatementEntryType.CASH_PLUS
         else:
             return StatementEntryType.NONE
+
+
+# -----------------------------------------------------------------------
+# Weekly/Monthly Summary
+class StatementSummary:
+
+    def __init__(self,
+                 summary_id: str = "",
+                 summary_date: date = date(2000, 1, 1),
+                 total: float = 0.0,
+                 transactions: int = 0) -> None:
+        self._summary_id = summary_id
+        self._summary_date = summary_date
+        self._total = total
+        self._transactions = transactions
+        self._entries = []
+
+    # -----------------------------------------------------------------------
+    # summary id accessors
+    @property
+    def summary_id(self):
+        return self._summary_id
+
+    @summary_id.setter
+    def summary_id(self, value) -> None:
+        self._summary_id = value
+
+    # -----------------------------------------------------------------------
+    # date accessors
+    @property
+    def summary_date(self):
+        return self._summary_date
+
+    @property
+    def summary_date_str(self) -> str:
+        dow = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+        return '{:02d}/{:02d}/{:02d} {}'.format(self._summary_date.day,  self._summary_date.month,
+                                                self._summary_date.year, dow[self._summary_date.weekday()])
+
+    @summary_date.setter
+    def summary_date(self, value) -> None:
+        self._summary_date = value
+
+    # -----------------------------------------------------------------------
+    # total accessors
+    @property
+    def total(self):
+        return self._total
+
+    @property
+    def total_str(self) -> str:
+        if self._total < 0:
+            return '-£{:,.2f}'.format(-self._total)
+        else:
+            return '£{:,.2f}'.format(self._total)
+
+    @total.setter
+    def total(self, value) -> None:
+        self._total = value
+
+    # -----------------------------------------------------------------------
+    # transactions accessors
+    @property
+    def transactions(self):
+        return self._transactions
+
+    @property
+    def transactions_str(self) -> str:
+        return '{}'.format(self._transactions)
+
+    @transactions.setter
+    def transactions(self, value) -> None:
+        self._transactions = value
+
+    # -----------------------------------------------------------------------
+    # entries accessors
+    @property
+    def entries(self):
+        return self._entries
+
+    @entries.setter
+    def entries(self, value) -> None:
+        self._entries = value
+
+    def add_entry(self, entry: StatementEntry) -> None:
+        add_statement_entry(self._entries, entry)
+
 
 # -----------------------------------------------------------------------
 # Statement entry taken from a line in a bank statement,
 # includes an amount the current account balance, type of account etc.
 class StatementEntry:
 
-    def __init__(self,  \
-                 entry_type: StatementEntryType = StatementEntryType.NONE,    \
-                 amount: float = 0.0,               \
-                 balance: float = 0.0,              \
-                 a_date: date = date(2000, 1, 1),   \
-                 week_no: int = 0,                  \
-                 seq_no: int = 0,                   \
-                 included_weekly: bool = False,             \
-                 included_monthly: bool = False,            \
+    def __init__(self,
+                 entry_type: StatementEntryType = StatementEntryType.NONE,
+                 amount: float = 0.0,
+                 balance: float = 0.0,
+                 a_date: date = date(2000, 1, 1),
+                 week_no: int = 0,
+                 seq_no: int = 0,
+                 included_weekly: bool = False,
+                 included_monthly: bool = False,
                  description: str = "") -> None:
         self._entry_type = entry_type
         self._amount = amount
@@ -65,13 +164,13 @@ class StatementEntry:
 
     # -----------------------------------------------------------------------
     def __str__(self) -> str:
-        return '{}, {}, {}, {}, {}, {}, {}'.format( \
-            str(self._entry_type) ,     \
-            self.amount_str,            \
-            self.balance_str,           \
-            self.date_str,              \
-            self.week_no_str,           \
-            self.seq_no_str,            \
+        return '{}, {}, {}, {}, {}, {}, {}'.format(
+            str(self._entry_type) ,
+            self.amount_str,
+            self.balance_str,
+            self.date_str,
+            self.week_no_str,
+            self.seq_no_str,
             self._description)
 
     # -----------------------------------------------------------------------
@@ -141,7 +240,7 @@ class StatementEntry:
                                                 dow[self._date.weekday()])
 
     @date.setter
-    def x(self, value) -> None:
+    def date(self, value) -> None:
         self._date = value
 
     # -----------------------------------------------------------------------
@@ -152,7 +251,7 @@ class StatementEntry:
 
     @property
     def week_no_str(self) -> str:
-            return '{}'.format(self._week_no)
+        return '{}'.format(self._week_no)
 
     @week_no.setter
     def week_no(self, value) -> None:
@@ -166,7 +265,7 @@ class StatementEntry:
 
     @property
     def seq_no_str(self) -> str:
-            return '{}'.format(self._seq_no)
+        return '{}'.format(self._seq_no)
 
     @seq_no.setter
     def seq_no(self, value) -> None:
@@ -210,22 +309,22 @@ class StatementEntry:
     # create a line of csv, comma separated with double quotes around each field
     # as the current fields have comma delimiters
     def to_csv(self) -> str:
-        return '\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\"'.format( \
-            str(self._entry_type), \
-            self.amount_str, \
-            self.balance_str, \
-            self.date_str, \
-            self.week_no_str, \
-            self.seq_no_str, \
-            self.included_weekly_str, \
-            self.included_monthly_str, \
+        return '\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\"'.format(
+            str(self._entry_type),
+            self.amount_str,
+            self.balance_str,
+            self.date_str,
+            self.week_no_str,
+            self.seq_no_str,
+            self.included_weekly_str,
+            self.included_monthly_str,
             self._description)
 
     # -----------------------------------------------------------------------
     # creates a list of the displayable values
     def to_str_list(self) -> []:
-        return [self.entry_type_str, self.amount_str, self.balance_str, self.date_str, \
-                self._description, self.week_no_str, self.included_weekly_str, self.included_monthly_str, \
+        return [self.entry_type_str, self.amount_str, self.balance_str, self.date_str,
+                self._description, self.week_no_str, self.included_weekly_str, self.included_monthly_str,
                 self.seq_no_str]
 
     # -----------------------------------------------------------------------
@@ -276,17 +375,17 @@ class StatementEntry:
             return True
 
         except ValueError as e:
-            log_error(repr(e))
+            Logger.log_error(repr(e))
             return False
 
     # -----------------------------------------------------------------------
     # parse data from CSV string taken from file V1.20 and V1.30
-    def from_csv_v1_20(self, csvstr: str) -> bool:
+    def from_csv_v1_20(self, csv_str: str) -> bool:
 
         try:
 
             # tokenise csv line
-            reader = csv.reader([csvstr], delimiter=',')
+            reader = csv.reader([csv_str], delimiter=',')
             ts = next(reader)
 
             # type
@@ -324,8 +423,152 @@ class StatementEntry:
             return True
 
         except ValueError as e:
-            log_error(repr(e))
+            Logger.log_error(repr(e))
             return False
+
+
+def compare_statement_entries(se1: StatementEntry, se2: StatementEntry) -> int:
+
+    # sort by date first
+    if se1.date < se2.date:
+        return -1
+    if se1.date > se2.date:
+        return 1
+
+    # then sort by type
+    if se1.entry_type != se2.entry_type:
+        if se1.entry_type < se2.entry_type:
+            return -1
+        else:
+            return 1
+
+    # sort by week first
+    if se1.week_no != se2.week_no:
+        if se1.week_no < se2.week_no:
+            return -1
+        else:
+            return 1
+
+    # then by statement order
+    if se1.seq_no < se2.seq_no:
+        t = -1
+    elif se1.seq_no > se2.seq_no:
+        t = 1
+    else:
+        t = 0
+
+    # the statements in the santander current account are ordered
+    # newest first, the others have oldest first
+    if se1.entry_type == StatementEntryType.SANTANDER_CURRENT_ACCOUNT:
+        return -t
+    else:
+        return t
+
+
+# ------------------------------------------------------
+# add entry to entries list in the correct order
+def add_statement_entry(entries: [], se: StatementEntry):
+    for n in range(len(entries)):
+        r = compare_statement_entries(se, entries[n])
+        if r == -1:
+            entries.insert(n, se)
+            return
+        elif r == 0:
+            # ignore matching entries
+            return
+    entries.append(se)
+
+
+# -----------------------------------------------------
+# read data from file
+def read_file(file_name: str) -> bool:
+
+    try:
+        with open(file_name, mode='r', encoding="utf-8") as f:
+            ls = f.readlines()
+
+        # which version of data
+        if ls[0][:-1] == "Money Reckoner 1.10":
+            vers: float = 1.1
+        elif ls[0][:-1] == "Money Reckoner 1.20":
+            vers: float = 1.2
+        elif ls[0][:-1] == "Money Reckoner 1.30":
+            vers: float = 1.3
+        else:
+            raise RuntimeError(f'Invalid header \'{ls[0]}\' in file \'{file_name}\'')
+
+        # parse lines from file
+        for n in range(1, len(ls)):
+            se = StatementEntry()
+            if se.from_csv(ls[n], vers):
+                global statement_entries
+                add_statement_entry(statement_entries, se)
+            else:
+                Logger.log_error(f'Error parsing line ({n}) : \'{ls[n]}\'')
+                return False
+
+        Logger.log_info(f'Read {len(statement_entries)} entries from file \'{file_name}\'')
+        return True
+
+    except FileNotFoundError:
+        Logger.log_error(f'Could not find file {file_name}')
+        return False
+    except RuntimeError as e:
+        Logger.log_error(repr(e))
+        return False
+
+
+# ------------------------------------------------------
+# write to file
+def write_file (file_name: str) -> bool:
+
+    try:
+        with open(file_name, mode='w', encoding="utf-8") as f:
+            f.write("Money Reckoner 1.30\n")
+            for se in statement_entries:
+                f.write(se.to_csv())
+                f.write('\n')
+
+    except FileNotFoundError:
+        Logger.log_error(f'Could not write to file {file_name}')
+        return False
+    except RuntimeError as e:
+        Logger.log_error(repr(e))
+        return False
+
+
+# ------------------------------------------------------
+#
+def generate_weekly_summaries() -> None:
+    global weekly_statement
+    weekly_statement = []
+    week_no = 0
+    for se in statement_entries:
+        if week_no != se.week_no:
+            # start new weekly summary
+            week_no = se.week_no
+            summary = StatementSummary()
+            summary.summary_id = f'{week_no}'
+
+            # set summary date to mon preceding data
+            # Date date
+            # date.
+            # se.date.Weekday
+
+        # accumulate summary data
+        summary.total += se.amount
+        summary.transactions += 1
+
+
+
+
+
+
+
+
+
+
+
 
 
 
