@@ -27,14 +27,29 @@ def child_values_summary_tree(entry: StatementData.StatementEntry) -> []:
             entry.description, entry.included_weekly_str, entry.included_monthly_str, entry.seq_no_str]
 
 
+# patch tree view tags;
+# see https://stackoverflow.com/questions/56331001/python-tkinter-treeview-colors-are-not-updating
+def fixed_map(option):
+    # Returns the style map for 'option' with any styles starting with
+    # ("!disabled", "!selected", ...) filtered out
+
+    # style.map() returns an empty list for missing options, so this should
+    # be future-safe
+    return [elm for elm in style.map("Treeview", query_opt=option)
+            if elm[:2] != ("!disabled", "!selected")]
+
+
 # -----------------------------------------------------------------------
 # main
 if __name__ == "__main__":
 
-    # https://www.youtube.com/watch?v=-rVA37OVDs8
-
     window = tk.Tk()
     window.geometry("1200x600")
+
+    style = ttk.Style()
+    style.map("Treeview",
+              foreground=fixed_map("foreground"),
+              background=fixed_map("background"))
 
     # ----------------------------------------------------
     # frame1 has 3 data views in a tabbed control
@@ -114,8 +129,10 @@ if __name__ == "__main__":
     # --------------------------------------------------
     # weekly summary tree view
     # weekly tree scroll bar
-    tree_weekly_scroll = tk.Scrollbar(tab_weekly)
-    tree_weekly_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+    tree_weekly_scroll_v = tk.Scrollbar(tab_weekly, orient=tk.VERTICAL)
+    tree_weekly_scroll_v.pack(side=tk.RIGHT, fill=tk.Y)
+    tree_weekly_scroll_h = tk.Scrollbar(tab_weekly, orient=tk.HORIZONTAL)
+    tree_weekly_scroll_h.pack(side=tk.BOTTOM, fill=tk.X)
 
     columns = [['week_no',      'Week',          50],
                ['wdate',        'Date',          100],
@@ -132,15 +149,20 @@ if __name__ == "__main__":
 
     # weekly tree view
     tree_weekly = ttk.Treeview(tab_weekly, columns=[c[0] for c in columns], show='tree headings',
-                               yscrollcommand=tree_weekly_scroll.set)
+                               yscrollcommand=tree_weekly_scroll_v.set,
+                               xscrollcommand=tree_weekly_scroll_h.set)
     tree_weekly.pack(fill=tk.BOTH, expand=True)
     tree_weekly.column('#0', minwidth=25, width=25, stretch=False)
     for n in range(len(columns)):
         tree_weekly.column(n, minwidth=columns[n][2], width=columns[n][2], stretch=False)
         tree_weekly.heading(columns[n][0], text=columns[n][1])
 
-    # configure scroll bar
-    tree_weekly_scroll.config(command=tree_weekly.yview)
+    # configure scroll bars
+    tree_weekly_scroll_v.config(command=tree_weekly.yview)
+    tree_weekly_scroll_h.config(command=tree_weekly.xview)
+
+    # entries that are not part of the weekly budget are greyed out
+    tree_weekly.tag_configure('not_weekly', foreground='grey')
 
     # populate the tree
     iid = 0
@@ -151,13 +173,13 @@ if __name__ == "__main__":
 
         for entry in summary.entries:
             if entry.included_weekly:
-                tags = ('weekly',)
+                tags = ()
             else:
-                tags = ('',)
-            tree_weekly.insert('', tk.END, iid=iid, values=child_values_summary_tree(entry), open=False)
+                tags = ('not_weekly',)
+
+            tree_weekly.insert('', tk.END, iid=iid, values=child_values_summary_tree(entry), open=False, tags=tags)
             tree_weekly.move(iid, piid, iid - piid)
             iid += 1
-
 
     # --------------------------------------------------
     # monthly summary tree view
@@ -187,12 +209,6 @@ if __name__ == "__main__":
 
     # configure scroll bar
     tree_monthly_scroll.config(command=tree_monthly.yview)
-
-    # tree_monthly.insert('', tk.END, iid=0, values=('a one', 'two', 'three'), open=False)
-    # tree_monthly.insert('', tk.END, iid=1, values=('b one', 'two', 'three'), open=False)
-    # tree_monthly.insert('', tk.END, iid=2, values=('c one', 'two', 'three'), open=False)
-    # tree_monthly.insert('', tk.END, iid=3, values=('c one', 's-two', 's-three'), open=False)
-    # tree_monthly.move(3, 1, 0)
 
     window.mainloop()
 
