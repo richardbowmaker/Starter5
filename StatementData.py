@@ -1,11 +1,10 @@
 
 
 import csv
-from datetime import date
 from enum import Enum
 import locale as locale
 import Logger as Logger
-
+import datetime as datetime
 
 # forward ref
 class StatementEntry:
@@ -14,8 +13,8 @@ class StatementEntry:
 
 # the database of statement data
 statement_entries: list = []
-weekly_statement: list = []
-monthly_statement: list = []
+weekly_summaries: list = []
+monthly_summaries: list = []
 
 
 class StatementEntryType(Enum):
@@ -56,7 +55,7 @@ class StatementSummary:
 
     def __init__(self,
                  summary_id: str = "",
-                 summary_date: date = date(2000, 1, 1),
+                 summary_date: datetime.date = datetime.date(2000, 1, 1),
                  total: float = 0.0,
                  transactions: int = 0) -> None:
         self._summary_id = summary_id
@@ -145,7 +144,7 @@ class StatementEntry:
                  entry_type: StatementEntryType = StatementEntryType.NONE,
                  amount: float = 0.0,
                  balance: float = 0.0,
-                 a_date: date = date(2000, 1, 1),
+                 a_date: datetime.date = datetime.date(2000, 1, 1),
                  week_no: int = 0,
                  seq_no: int = 0,
                  included_weekly: bool = False,
@@ -274,7 +273,7 @@ class StatementEntry:
     # -----------------------------------------------------------------------
     # included weekly accessors
     @property
-    def included_weekly(self):
+    def included_weekly(self) -> bool:
         return self._included_weekly
 
     @property
@@ -289,9 +288,9 @@ class StatementEntry:
         self._included_weekly = value
 
     # -----------------------------------------------------------------------
-    # included weekly accessors
+    # included monthly accessors
     @property
-    def included_monthly(self):
+    def included_monthly(self) -> bool:
         return self._included_monthly
 
     @property
@@ -304,6 +303,16 @@ class StatementEntry:
     @included_monthly.setter
     def included_monthly(self, value) -> None:
         self._included_monthly = value
+
+    # -----------------------------------------------------------------------
+    # description accessors
+    @property
+    def description(self):
+        return self._description
+
+    @description.setter
+    def description(self, value) -> None:
+        self._description = value
 
     # -----------------------------------------------------------------------
     # create a line of csv, comma separated with double quotes around each field
@@ -319,13 +328,6 @@ class StatementEntry:
             self.included_weekly_str,
             self.included_monthly_str,
             self._description)
-
-    # -----------------------------------------------------------------------
-    # creates a list of the displayable values
-    def to_str_list(self) -> []:
-        return [self.entry_type_str, self.amount_str, self.balance_str, self.date_str,
-                self._description, self.week_no_str, self.included_weekly_str, self.included_monthly_str,
-                self.seq_no_str]
 
     # -----------------------------------------------------------------------
     # read from a line of csv
@@ -361,7 +363,7 @@ class StatementEntry:
 
             # date
             ds = ts[3].strip().split(' ')[1].split('/')
-            self._date = date(int(ds[2]), int(ds[1]), int(ds[0]))
+            self._date = datetime.date(int(ds[2]), int(ds[1]), int(ds[0]))
 
             # week no
             self._week_no = int(ts[4])
@@ -403,7 +405,7 @@ class StatementEntry:
 
             # date
             ds = ts[3].strip().split(' ')[0].split('/')
-            self._date = date(int(ds[2]), int(ds[1]), int(ds[0]))
+            self._date = datetime.date(int(ds[2]), int(ds[1]), int(ds[0]))
 
             # week no
             self._week_no = int(ts[4])
@@ -540,24 +542,37 @@ def write_file (file_name: str) -> bool:
 # ------------------------------------------------------
 #
 def generate_weekly_summaries() -> None:
-    global weekly_statement
-    weekly_statement = []
+    global weekly_summaries
+    weekly_summaries = []
     week_no = 0
+    summary = StatementSummary()
+
     for se in statement_entries:
         if week_no != se.week_no:
-            # start new weekly summary
+
+            # new week
             week_no = se.week_no
+
+            # add previous summary to summaries list
+            if len(summary.entries) > 0:
+                weekly_summaries.append(summary)
+
+            # start summary for the new week
             summary = StatementSummary()
             summary.summary_id = f'{week_no}'
 
-            # set summary date to mon preceding data
-            # Date date
-            # date.
-            # se.date.Weekday
+            # set summary date to the start of the week
+            summary.summary_date = se.date - datetime.timedelta(days=se.date.weekday())
 
         # accumulate summary data
-        summary.total += se.amount
+        if se.included_weekly:
+            summary.total -= se.amount
         summary.transactions += 1
+        summary.add_entry(se)
+
+    # add final summary to summaries list
+    if len(summary.entries) > 0:
+        weekly_summaries.append(summary)
 
 
 
