@@ -5,6 +5,7 @@ from enum import Enum
 import locale as locale
 import Logger as Logger
 import datetime as datetime
+import copy as copy
 
 # forward ref
 class StatementEntry:
@@ -540,7 +541,6 @@ def write_file (file_name: str) -> bool:
 
 
 # ------------------------------------------------------
-#
 def generate_weekly_summaries() -> None:
     global weekly_summaries
     weekly_summaries = []
@@ -562,7 +562,7 @@ def generate_weekly_summaries() -> None:
             summary.summary_id = f'{week_no}'
 
             # set summary date to the start of the week
-            summary.summary_date = se.date - datetime.timedelta(days=se.date.weekday())
+            summary.summary_date = copy.copy(se.date) - datetime.timedelta(days=se.date.weekday())
 
         # accumulate summary data
         if se.included_weekly:
@@ -573,6 +573,42 @@ def generate_weekly_summaries() -> None:
     # add final summary to summaries list
     if len(summary.entries) > 0:
         weekly_summaries.append(summary)
+
+
+# ------------------------------------------------------
+def generate_monthly_summaries() -> None:
+    global monthly_summaries
+    monthly_summaries = []
+    month = ''
+    summary = StatementSummary()
+
+    for se in statement_entries:
+        ms = f'{se.date.month}\\{se.date.year}'
+        if month != ms:
+
+            # new month
+            month = ms
+
+            # add previous summary to summaries list
+            if len(summary.entries) > 0:
+                monthly_summaries.append(summary)
+
+            # start summary for the new month
+            summary = StatementSummary()
+            summary.summary_id = ms
+
+            # set summary date to the start of the week
+            summary.summary_date = datetime.date(se.date.year, se.date.month, 1)
+
+        # accumulate summary data
+        if se.included_monthly:
+            summary.total -= se.amount
+        summary.transactions += 1
+        summary.add_entry(se)
+
+    # add final summary to summaries list
+    if len(summary.entries) > 0:
+        monthly_summaries.append(summary)
 
 
 

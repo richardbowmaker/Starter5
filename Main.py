@@ -15,21 +15,35 @@ def values_all_tree(entry: StatementData.StatementEntry) -> []:
 
 
 # -----------------------------------------------------------------------
-# displayable values for the summary entry tree parent row
-def values_summary_tree(summary: StatementData.StatementSummary) -> []:
+# displayable values for the weekly summary entry tree parent row
+def values_summary_weekly_tree(summary: StatementData.StatementSummary) -> []:
     return [summary.summary_id, summary.summary_date_str, summary.total_str, summary.transactions_str]
 
 
 # -----------------------------------------------------------------------
-# displayable values for the summary entry tree child row
-def child_values_summary_tree(entry: StatementData.StatementEntry) -> []:
+# displayable values for the weekly summary entry tree child row
+def child_values_summary_weekly_tree(entry: StatementData.StatementEntry) -> []:
     return ['', '', '', '', entry.entry_type_str, entry.amount_str, entry.balance_str, entry.date_str,
             entry.description, entry.included_weekly_str, entry.included_monthly_str, entry.seq_no_str]
 
 
+# -----------------------------------------------------------------------
+# displayable values for the monthly summary entry tree parent row
+def values_summary_monthly_tree(summary: StatementData.StatementSummary) -> []:
+    return [summary.summary_id, summary.total_str, summary.transactions_str]
+
+
+# -----------------------------------------------------------------------
+# displayable values for the monthly summary entry tree child row
+def child_values_summary_monthly_tree(entry: StatementData.StatementEntry) -> []:
+    return ['', '', '', entry.entry_type_str, entry.amount_str, entry.balance_str, entry.date_str,
+            entry.description, entry.included_weekly_str, entry.included_monthly_str, entry.seq_no_str]
+
+
+# -----------------------------------------------------------------------
 # patch tree view tags;
 # see https://stackoverflow.com/questions/56331001/python-tkinter-treeview-colors-are-not-updating
-def fixed_map(option):
+def fixed_map(style: ttk.Style, option):
     # Returns the style map for 'option' with any styles starting with
     # ("!disabled", "!selected", ...) filtered out
 
@@ -40,16 +54,109 @@ def fixed_map(option):
 
 
 # -----------------------------------------------------------------------
-# main
-if __name__ == "__main__":
+# create the tree view
+# columns is a list of tuples, ['column_name', column_width]
+#
+def create_tree(frame: tk.Frame, columns: list = []) -> ttk.Treeview:
+
+    # horizontal and vertical scroll bara
+    scroll_v = tk.Scrollbar(frame, orient=tk.VERTICAL)
+    scroll_v.pack(side=tk.RIGHT, fill=tk.Y)
+    scroll_h = tk.Scrollbar(frame, orient=tk.HORIZONTAL)
+    scroll_h.pack(side=tk.BOTTOM, fill=tk.X)
+
+    # weekly tree view
+    tree = ttk.Treeview(frame, columns=[c[0] for c in columns], show='tree headings',
+                        yscrollcommand=scroll_v.set,
+                        xscrollcommand=scroll_h.set)
+    tree.pack(fill=tk.BOTH, expand=True)
+    tree.column('#0', minwidth=25, width=25, stretch=False)
+
+    for n in range(len(columns)):
+        tree.column(n, minwidth=columns[n][2], width=columns[n][2], stretch=False)
+        tree.heading(columns[n][0], text=columns[n][1])
+
+    # configure scroll bars
+    scroll_v.config(command=tree.yview)
+    scroll_h.config(command=tree.xview)
+
+    # entries that are not part of the weekly budget are greyed out
+    tree.tag_configure('excluded', foreground='grey')
+
+    return tree
+
+
+# -----------------------------------------------------------------------
+# populate weekly summary tree
+def populate_all_entries_tree(tree: ttk.Treeview) -> None:
+    for entry in StatementData.statement_entries:
+        tree.insert('', tk.END, values=values_all_tree(entry), open=False)
+
+
+# -----------------------------------------------------------------------
+# populate weekly summary tree
+def populate_weekly_summaries_tree(tree: ttk.Treeview) -> None:
+
+    iid = 0
+    for summary in StatementData.weekly_summaries:
+        tree.insert('', tk.END, iid=iid, values=values_summary_weekly_tree(summary), open=False)
+        piid = iid
+        iid += 1
+
+        for entry in summary.entries:
+            if entry.included_weekly:
+                tags = ()
+            else:
+                tags = ('excluded',)
+
+            tree.insert('', tk.END, iid=iid, values=child_values_summary_weekly_tree(entry), open=False, tags=tags)
+            tree.move(iid, piid, iid - piid)
+            iid += 1
+
+
+# -----------------------------------------------------------------------
+# populate weekly summary tree
+def populate_monthly_summaries_tree(tree: ttk.Treeview) -> None:
+
+    iid = 0
+    for summary in StatementData.monthly_summaries:
+        tree.insert('', tk.END, iid=iid, values=values_summary_monthly_tree(summary), open=False)
+        piid = iid
+        iid += 1
+
+        for entry in summary.entries:
+            if entry.included_monthly:
+                tags = ()
+            else:
+                tags = ('excluded',)
+
+            tree.insert('', tk.END, iid=iid, values=child_values_summary_monthly_tree(entry), open=False, tags=tags)
+            tree.move(iid, piid, iid - piid)
+            iid += 1
+
+
+# # -----------------------------------------------------------------------
+# def on_timer() -> None:
+#
+#
+# class MainFrame:
+
+# -----------------------------------------------------------------------
+# initialise GUI
+def init_ui():
 
     window = tk.Tk()
     window.geometry("1200x600")
 
+
+
+    s = window.clipboard_get()
+
+
     style = ttk.Style()
     style.map("Treeview",
-              foreground=fixed_map("foreground"),
-              background=fixed_map("background"))
+              foreground=fixed_map(style, "foreground"),
+              background=fixed_map(style, "background"))
 
     # ----------------------------------------------------
     # frame1 has 3 data views in a tabbed control
@@ -75,7 +182,7 @@ if __name__ == "__main__":
     tabs.pack(fill=tk.BOTH, expand=True)
 
     # ---------------------------------------------------
-    # frame3 has the logger
+    # set up the logger in frame 3
 
     # logger scroll bar
     logger_scroll = tk.Scrollbar(frame3)
@@ -92,16 +199,13 @@ if __name__ == "__main__":
 
     Logger.log_info(f'Python version {sys.version_info[0]}.{sys.version_info[1]}')
 
-    # --------------------------------------------------
-    #
+    # read the statement entries from file
     StatementData.read_file('E:\\_Ricks\\Python\\Starter5\\statement_v130.txt')
     StatementData.generate_weekly_summaries()
+    StatementData.generate_monthly_summaries()
     # StatementData.write_file('E:\\_Ricks\\Python\\Starter5\\statement_v130.txt')
-    # --------------------------------------------------
-    # all tree scroll bar
-    tree_all_scroll = tk.Scrollbar(tab_all)
-    tree_all_scroll.pack(side=tk.RIGHT, fill=tk.Y)
 
+    # all entries tree
     columns = [['type',        'Type',         175],
                ['amount',      'Amount',        75],
                ['balance',     'Balance',       75],
@@ -112,30 +216,12 @@ if __name__ == "__main__":
                ['monthly',     'Monthly',       25],
                ['seq_no',      'Seq',           40]]
 
-    # weekly tree view
-    tree_all = ttk.Treeview(tab_all, columns=[c[0] for c in columns], show='headings', yscrollcommand=tree_all_scroll.set)
-    tree_all.pack(fill=tk.BOTH, expand=True)
-    for n in range(len(columns)):
-        tree_all.column(n, minwidth=columns[n][2], width=columns[n][2], stretch=False)
-        tree_all.heading(columns[n][0], text=columns[n][1])
+    tree_all = create_tree(tab_all, columns)
+    populate_all_entries_tree(tree_all)
 
-    # configure scroll bar
-    tree_all_scroll.config(command=tree_all.yview)
-
-    # add some data
-    for entry in StatementData.statement_entries:
-        tree_all.insert('', tk.END, values=values_all_tree(entry), open=False)
-
-    # --------------------------------------------------
     # weekly summary tree view
-    # weekly tree scroll bar
-    tree_weekly_scroll_v = tk.Scrollbar(tab_weekly, orient=tk.VERTICAL)
-    tree_weekly_scroll_v.pack(side=tk.RIGHT, fill=tk.Y)
-    tree_weekly_scroll_h = tk.Scrollbar(tab_weekly, orient=tk.HORIZONTAL)
-    tree_weekly_scroll_h.pack(side=tk.BOTTOM, fill=tk.X)
-
     columns = [['week_no',      'Week',          50],
-               ['wdate',        'Date',          100],
+               ['wdate',        'Date',         100],
                ['total',        'Total',         75],
                ['transactions', 'Transactions',  75],
                ['type',         'Type',         175],
@@ -147,46 +233,10 @@ if __name__ == "__main__":
                ['monthly',      'Monthly',       25],
                ['seq_no',       'Seq',           40]]
 
-    # weekly tree view
-    tree_weekly = ttk.Treeview(tab_weekly, columns=[c[0] for c in columns], show='tree headings',
-                               yscrollcommand=tree_weekly_scroll_v.set,
-                               xscrollcommand=tree_weekly_scroll_h.set)
-    tree_weekly.pack(fill=tk.BOTH, expand=True)
-    tree_weekly.column('#0', minwidth=25, width=25, stretch=False)
-    for n in range(len(columns)):
-        tree_weekly.column(n, minwidth=columns[n][2], width=columns[n][2], stretch=False)
-        tree_weekly.heading(columns[n][0], text=columns[n][1])
+    tree_weekly = create_tree(tab_weekly, columns)
+    populate_weekly_summaries_tree(tree_weekly)
 
-    # configure scroll bars
-    tree_weekly_scroll_v.config(command=tree_weekly.yview)
-    tree_weekly_scroll_h.config(command=tree_weekly.xview)
-
-    # entries that are not part of the weekly budget are greyed out
-    tree_weekly.tag_configure('not_weekly', foreground='grey')
-
-    # populate the tree
-    iid = 0
-    for summary in StatementData.weekly_summaries:
-        tree_weekly.insert('', tk.END, iid=iid, values=values_summary_tree(summary), open=False)
-        piid = iid
-        iid += 1
-
-        for entry in summary.entries:
-            if entry.included_weekly:
-                tags = ()
-            else:
-                tags = ('not_weekly',)
-
-            tree_weekly.insert('', tk.END, iid=iid, values=child_values_summary_tree(entry), open=False, tags=tags)
-            tree_weekly.move(iid, piid, iid - piid)
-            iid += 1
-
-    # --------------------------------------------------
     # monthly summary tree view
-    # monthly tree scroll bar
-    tree_monthly_scroll = tk.Scrollbar(tab_monthly)
-    tree_monthly_scroll.pack(side=tk.RIGHT, fill=tk.Y)
-
     columns = [['month',        'Month',         50],
                ['total',        'Total',         75],
                ['transactions', 'Transactions',  75],
@@ -199,18 +249,17 @@ if __name__ == "__main__":
                ['monthly',      'Monthly',       25],
                ['seq_no',       'Seq',           40]]
 
-    # weekly tree view
-    tree_monthly = ttk.Treeview(tab_monthly, columns=[c[0] for c in columns], show='headings',
-                                yscrollcommand=tree_monthly_scroll.set)
-    tree_monthly.pack(fill=tk.BOTH, expand=True)
-    for n in range(len(columns)):
-        tree_monthly.column(n, minwidth=columns[n][2], width=columns[n][2], stretch=False)
-        tree_monthly.heading(columns[n][0], text=columns[n][1])
-
-    # configure scroll bar
-    tree_monthly_scroll.config(command=tree_monthly.yview)
+    tree_monthly = create_tree(tab_monthly, columns)
+    populate_monthly_summaries_tree(tree_monthly)
 
     window.mainloop()
+
+
+# -----------------------------------------------------------------------
+# main
+if __name__ == "__main__":
+    init_ui()
+
 
 
 
