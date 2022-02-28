@@ -4,6 +4,7 @@ from tkinter import ttk
 import StatementData as StatementData
 import Logger as Logger
 import sys
+import Database as Database
 
 
 # -----------------------------------------------------------------------
@@ -137,21 +138,31 @@ def populate_monthly_summaries_tree(tree: ttk.Treeview) -> None:
 
 # # -----------------------------------------------------------------------
 # def on_timer() -> None:
-#
-#
-# class MainFrame:
+class ClipboardHandler:
+
+    def __init__(self, window: tk.Tk):
+        self._window = window
+        self._window.clipboard_clear()
+        self._window.clipboard_append('')
+        self._window.after(1000, self.on_timer)
+
+    def on_timer(self) -> None:
+        s = self._window.clipboard_get()
+
+        if len(s) > 0:
+            Logger.log_info(f'clipboard {s}')
+            self._window.clipboard_clear()
+            self._window.clipboard_append('')
+
+        self._window.after(1000, self.on_timer)
+
 
 # -----------------------------------------------------------------------
 # initialise GUI
-def init_ui():
+def run_ui():
 
     window = tk.Tk()
     window.geometry("1200x600")
-
-
-
-    s = window.clipboard_get()
-
 
     style = ttk.Style()
     style.map("Treeview",
@@ -252,13 +263,16 @@ def init_ui():
     tree_monthly = create_tree(tab_monthly, columns)
     populate_monthly_summaries_tree(tree_monthly)
 
+    # start the timer
+    ClipboardHandler(window)
+
     window.mainloop()
 
 
 # -----------------------------------------------------------------------
 # main
 if __name__ == "__main__":
-    init_ui()
+    run_ui()
 
 
 

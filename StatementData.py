@@ -1,6 +1,6 @@
 
 
-import csv
+import csv as csv
 from enum import Enum
 import locale as locale
 import Logger as Logger
@@ -609,33 +609,6 @@ def generate_monthly_summaries() -> None:
     # add final summary to summaries list
     if len(summary.entries) > 0:
         monthly_summaries.append(summary)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
