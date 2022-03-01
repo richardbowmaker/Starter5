@@ -1,11 +1,14 @@
 
-import tkinter as tk
-from tkinter import ttk
+
+import Parsers as Parsers
 import StatementData as StatementData
 import Logger as Logger
-import sys
 import Database as Database
 
+import datetime as datetime
+import sys
+import tkinter as tk
+from tkinter import ttk
 
 # -----------------------------------------------------------------------
 # displayable values for the all tree
@@ -90,16 +93,17 @@ def create_tree(frame: tk.Frame, columns: list = []) -> ttk.Treeview:
 # -----------------------------------------------------------------------
 # populate weekly summary tree
 def populate_all_entries_tree(tree: ttk.Treeview) -> None:
-    for entry in StatementData.statement_entries:
+    tree.delete(*tree.get_children())
+    for entry in Database.statement_entries:
         tree.insert('', tk.END, values=values_all_tree(entry), open=False)
 
 
 # -----------------------------------------------------------------------
 # populate weekly summary tree
 def populate_weekly_summaries_tree(tree: ttk.Treeview) -> None:
-
+    tree.delete(*tree.get_children())
     iid = 0
-    for summary in StatementData.weekly_summaries:
+    for summary in Database.weekly_summaries:
         tree.insert('', tk.END, iid=iid, values=values_summary_weekly_tree(summary), open=False)
         piid = iid
         iid += 1
@@ -118,9 +122,9 @@ def populate_weekly_summaries_tree(tree: ttk.Treeview) -> None:
 # -----------------------------------------------------------------------
 # populate weekly summary tree
 def populate_monthly_summaries_tree(tree: ttk.Treeview) -> None:
-
+    tree.delete(*tree.get_children())
     iid = 0
-    for summary in StatementData.monthly_summaries:
+    for summary in Database.monthly_summaries:
         tree.insert('', tk.END, iid=iid, values=values_summary_monthly_tree(summary), open=False)
         piid = iid
         iid += 1
@@ -142,17 +146,15 @@ class ClipboardHandler:
 
     def __init__(self, window: tk.Tk):
         self._window = window
-        self._window.clipboard_clear()
-        self._window.clipboard_append('')
+        self._clipboard = ''
         self._window.after(1000, self.on_timer)
 
     def on_timer(self) -> None:
-        s = self._window.clipboard_get()
+        cb = self._window.clipboard_get()
+        if cb != self._clipboard:
+            self._clipboard = cb
+            Parsers.parse_statement(cb)
 
-        if len(s) > 0:
-            Logger.log_info(f'clipboard {s}')
-            self._window.clipboard_clear()
-            self._window.clipboard_append('')
 
         self._window.after(1000, self.on_timer)
 
@@ -211,9 +213,9 @@ def run_ui():
     Logger.log_info(f'Python version {sys.version_info[0]}.{sys.version_info[1]}')
 
     # read the statement entries from file
-    StatementData.read_file('E:\\_Ricks\\Python\\Starter5\\statement_v130.txt')
-    StatementData.generate_weekly_summaries()
-    StatementData.generate_monthly_summaries()
+    Database.read_file('E:\\_Ricks\\Python\\Starter5\\statement_v130.txt')
+    Database.generate_weekly_summaries()
+    Database.generate_monthly_summaries()
     # StatementData.write_file('E:\\_Ricks\\Python\\Starter5\\statement_v130.txt')
 
     # all entries tree
@@ -272,6 +274,8 @@ def run_ui():
 # -----------------------------------------------------------------------
 # main
 if __name__ == "__main__":
+
+
     run_ui()
 
 
