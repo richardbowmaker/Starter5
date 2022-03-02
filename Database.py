@@ -13,26 +13,62 @@ monthly_summaries: list = []
 # does data need committing to file
 is_dirty: bool = False
 
+# current max entry sequence no
+seq_no: int = -1
+
+
+# ------------------------------------------------------
+# database dirty flag
+def set_dirty(dirty: bool = True):
+    global is_dirty
+    if is_dirty != dirty:
+        Logger.log_info(f'Dirty flag changed {is_dirty} -> {dirty}')
+    is_dirty = dirty
+
+
+def get_is_dirty():
+    global is_dirty
+    return is_dirty
+
 
 # ------------------------------------------------------
 # add entry to statement entries list in the correct order
 # returns true if added to list, false if it already exists in the list
 def add_statement_entry(entries: [], entry: StatementData.StatementEntry) -> bool:
+
     for n in range(len(entries)):
-        r = StatementData.compare_statement_entries(entry, entries[n])
-        if r == -1:
+
+        if StatementData.is_equal_statement_entries(entry, entries[n]):
+            return False
+
+        if StatementData.compare_statement_entries(entry, entries[n]) == -1:
             entries.insert(n, entry)
             return True
-        elif r == 0:
-            # ignore matching entries
-            return False
+
     entries.append(entry)
     return True
 
 
 # -----------------------------------------------------
+# get next sequence number
+def next_seq_no() -> int:
+    global seq_no
+    seq_no += 1
+    return seq_no
+
+
+# -----------------------------------------------------
+# reset sequence number
+def reset_seq_no() -> int:
+    global seq_no
+    seq_no = -1
+
+
+# -----------------------------------------------------
 # read data from file
 def read_file(file_name: str) -> bool:
+    global statement_entries
+    statement_entries = []
 
     try:
         with open(file_name, mode='r', encoding="utf-8") as f:
@@ -50,15 +86,21 @@ def read_file(file_name: str) -> bool:
 
         # parse lines from file
         for n in range(1, len(ls)):
-            se = StatementData.StatementEntry()
-            if se.from_csv(ls[n], vers):
-                global statement_entries
-                add_statement_entry(statement_entries, se)
+            entry = StatementData.StatementEntry()
+            if entry.from_csv(ls[n], vers):
+                add_statement_entry(statement_entries, entry)
             else:
                 Logger.log_error(f'Error parsing line ({n}) : \'{ls[n]}\'')
                 return False
 
+        # assign sequence numbers
+        reset_seq_no()
+        for entry in statement_entries:
+            entry.seq_no = next_seq_no()
+
         Logger.log_info(f'Read {len(statement_entries)} entries from file \'{file_name}\'')
+        global seq_no
+        Logger.log_info(f'Max sequence number: {seq_no}')
         return True
 
     except FileNotFoundError:
@@ -71,18 +113,20 @@ def read_file(file_name: str) -> bool:
 
 # ------------------------------------------------------
 # write to file
-def write_file (file_name: str) -> bool:
+def write_file (filename: str) -> bool:
 
     try:
-        with open(file_name, mode='w', encoding="utf-8") as f:
+        with open(filename, mode='w', encoding="utf-8") as f:
             f.write("Money Reckoner 1.30\n")
             global statement_entries
             for se in statement_entries:
                 f.write(se.to_csv())
                 f.write('\n')
 
+            Logger.log_info(f'Data saved to \'{filename}\'')
+
     except FileNotFoundError:
-        Logger.log_error(f'Could not write to file {file_name}')
+        Logger.log_error(f'Could not write to file {filename}')
         return False
     except RuntimeError as e:
         Logger.log_error(repr(e))

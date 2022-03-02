@@ -319,7 +319,6 @@ class StatementEntry:
     def is_new(self, value) -> None:
         self._is_new = value
 
-
     # -----------------------------------------------------------------------
     # create a line of csv, comma separated with double quotes around each field
     # as the current fields have comma delimiters
@@ -435,7 +434,15 @@ class StatementEntry:
             return False
 
 
+def is_equal_statement_entries(se1: StatementEntry, se2: StatementEntry) -> bool:
+    return se1.entry_type == se2.entry_type and \
+           se1.date == se2.date and \
+           se1.amount == se2.amount and \
+           se1.balance == se2.balance
+
+
 def compare_statement_entries(se1: StatementEntry, se2: StatementEntry) -> int:
+    # returns -1, 0, 1
 
     # sort by date first
     if se1.date < se2.date:
@@ -450,27 +457,13 @@ def compare_statement_entries(se1: StatementEntry, se2: StatementEntry) -> int:
         else:
             return 1
 
-    # sort by week first
-    if se1.week_no != se2.week_no:
-        if se1.week_no < se2.week_no:
-            return -1
-        else:
-            return 1
-
     # then by statement order
     if se1.seq_no < se2.seq_no:
-        t = -1
+        return -1
     elif se1.seq_no > se2.seq_no:
-        t = 1
+        return 1
     else:
-        t = 0
-
-    # the statements in the santander current account are ordered
-    # newest first, the others have oldest first
-    if se1.entry_type == StatementEntryType.SANTANDER_CURRENT_ACCOUNT:
-        return -t
-    else:
-        return t
-
+        # should never happen
+        return 0
 
 

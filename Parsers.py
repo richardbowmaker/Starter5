@@ -24,14 +24,14 @@ def parse_statement(s: str) -> bool:
             break
 
     if new_data:
-        Database.is_dirty = True
+        Database.set_dirty()
         return True
     else:
         return False
 
 
 def parse_santander_current_account_statement(lines: []) -> bool:
-    Logger.log_info('parsing santander current account')
+    Logger.log_info('parsing santander current account statement')
 
     data = False
     count = 0
@@ -71,7 +71,7 @@ def parse_santander_current_account_statement(lines: []) -> bool:
                     entry.amount = locale.atof(ts[2].replace('£', '').replace(',', ''))
 
                 count += 1
-                entry.seq_no = count
+                entry.seq_no = Database.next_seq_no()
 
                 if Database.add_statement_entry(Database.statement_entries, entry):
                     # previously unseen entry
@@ -87,8 +87,62 @@ def parse_santander_current_account_statement(lines: []) -> bool:
 
 
 def parse_santander_credit_card_statement(lines: []) -> bool:
-    Logger.log_info('parsing santander credit card')
-    return True
+    Logger.log_info('parsing santander credit card statement')
+
+    data = False
+    count = 0
+    new_count = 0
+
+    for line in lines:
+        if line == 'Date	Card no.	Description	Money in	Money out':
+            # start parsing data
+            data = True
+            continue
+
+        if data:
+            try:
+                # 24/02/2022	**3878	GOOGLE PAY CHIPPENHAM CAFFE NERO CHIPPENHAM		£4.35
+                # 0 - date, 1 - card no, 2 - description, 3 - credit, 4 - debit
+
+                # end of data
+                if len(line) < 10:
+                    break
+
+                ts = line.split('\t')
+                ds = ts[0].split('/')
+
+                if len(ds) != 3:
+                    # end of data
+                    break
+
+                date = datetime.date(int(ds[2]), int(ds[1]), int(ds[0]))
+                entry = StatementData.StatementEntry()
+                entry.entry_type = StatementData.StatementEntryType.SANTANDER_CREDIT_CARD
+                entry.date = date
+                entry.week_no = calculate_week_no(date)
+                entry.description = ts[2]
+                entry.included_weekly = is_weekly_included(entry)
+                entry.included_monthly = is_monthly_included(entry)
+
+                if len(ts[3]) == 0:
+                    entry.amount = -locale.atof(ts[4].replace('£', '').replace(',', ''))
+                else:
+                    entry.amount = locale.atof(ts[3].replace('£', '').replace(',', ''))
+
+                count += 1
+                entry.seq_no = Database.next_seq_no()
+
+                if Database.add_statement_entry(Database.statement_entries, entry):
+                    # previously unseen entry
+                    new_count += 1
+                    entry.is_new = True
+
+            except ValueError as ex:
+                Logger.log_error('error parsing line \'{line}\': {repr(ex)}')
+                break
+
+    Logger.log_info(f'Parsed Santander credit card statement, {new_count} of {count} entries are new')
+    return new_count > 0
 
 
 def parse_cash_plus_statement(lines: []) -> bool:

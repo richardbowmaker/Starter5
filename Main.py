@@ -8,6 +8,7 @@ import Database as Database
 import datetime as datetime
 import sys
 import tkinter as tk
+from tkinter import messagebox as mb
 from tkinter import ttk
 
 # -----------------------------------------------------------------------
@@ -86,197 +87,222 @@ def create_tree(frame: tk.Frame, columns: list = []) -> ttk.Treeview:
 
     # entries that are not part of the weekly budget are greyed out
     tree.tag_configure('excluded', foreground='grey')
+    tree.tag_configure('new', background='light green')
 
     return tree
 
 
 # -----------------------------------------------------------------------
-# populate weekly summary tree
-def populate_all_entries_tree(tree: ttk.Treeview) -> None:
-    tree.delete(*tree.get_children())
-    for entry in Database.statement_entries:
-        tree.insert('', tk.END, values=values_all_tree(entry), open=False)
+# user interface main window
 
+class Main:
 
-# -----------------------------------------------------------------------
-# populate weekly summary tree
-def populate_weekly_summaries_tree(tree: ttk.Treeview) -> None:
-    tree.delete(*tree.get_children())
-    iid = 0
-    for summary in Database.weekly_summaries:
-        tree.insert('', tk.END, iid=iid, values=values_summary_weekly_tree(summary), open=False)
-        piid = iid
-        iid += 1
-
-        for entry in summary.entries:
-            if entry.included_weekly:
-                tags = ()
-            else:
-                tags = ('excluded',)
-
-            tree.insert('', tk.END, iid=iid, values=child_values_summary_weekly_tree(entry), open=False, tags=tags)
-            tree.move(iid, piid, iid - piid)
-            iid += 1
-
-
-# -----------------------------------------------------------------------
-# populate weekly summary tree
-def populate_monthly_summaries_tree(tree: ttk.Treeview) -> None:
-    tree.delete(*tree.get_children())
-    iid = 0
-    for summary in Database.monthly_summaries:
-        tree.insert('', tk.END, iid=iid, values=values_summary_monthly_tree(summary), open=False)
-        piid = iid
-        iid += 1
-
-        for entry in summary.entries:
-            if entry.included_monthly:
-                tags = ()
-            else:
-                tags = ('excluded',)
-
-            tree.insert('', tk.END, iid=iid, values=child_values_summary_monthly_tree(entry), open=False, tags=tags)
-            tree.move(iid, piid, iid - piid)
-            iid += 1
-
-
-# # -----------------------------------------------------------------------
-# def on_timer() -> None:
-class ClipboardHandler:
-
-    def __init__(self, window: tk.Tk):
-        self._window = window
+    def __init__(self):
+        self._window = None
+        self._tree_all = None
+        self._tree_weekly = None
+        self._tree_monthly = None
         self._clipboard = ''
-        self._window.after(1000, self.on_timer)
+        self._filename = 'E:\\_Ricks\\Python\\Starter5\\statement_v130.txt'
 
+    # -----------------------------------------------------------------------
+    # clipboard handler
     def on_timer(self) -> None:
         cb = self._window.clipboard_get()
         if cb != self._clipboard:
             self._clipboard = cb
-            Parsers.parse_statement(cb)
-
+            if Parsers.parse_statement(cb):
+                Database.generate_weekly_summaries()
+                Database.generate_monthly_summaries()
+                self.populate_all_entries_tree()
+                self.populate_weekly_summaries_tree()
+                self.populate_monthly_summaries_tree()
 
         self._window.after(1000, self.on_timer)
 
+    # -----------------------------------------------------------------------
+    # window closing
+    def on_close(self):
+        if Database.get_is_dirty():
+            res = mb.askyesno('Exit', f'Do you want to save to \'{self._filename}\'')
+            if res:
+                Database.write_file(self._filename)
+        self._window.destroy()
 
-# -----------------------------------------------------------------------
-# initialise GUI
-def run_ui():
+    # -----------------------------------------------------------------------
+    # populate weekly summary tree
+    def populate_all_entries_tree(self) -> None:
+        # clear tree
+        self._tree_all.delete(*self._tree_all.get_children())
+        for entry in Database.statement_entries:
+            tags = ()
+            if entry.is_new:
+                tags = ('new',)
 
-    window = tk.Tk()
-    window.geometry("1200x600")
+            self._tree_all.insert('', tk.END, values=values_all_tree(entry), open=False, tags=tags)
 
-    style = ttk.Style()
-    style.map("Treeview",
-              foreground=fixed_map(style, "foreground"),
-              background=fixed_map(style, "background"))
+    # -----------------------------------------------------------------------
+    # populate weekly summary tree
+    def populate_weekly_summaries_tree(self) -> None:
+        self._tree_weekly.delete(*self._tree_weekly.get_children())
+        iid = 0
+        for summary in Database.weekly_summaries:
+            self._tree_weekly.insert('', tk.END, iid=iid, values=values_summary_weekly_tree(summary), open=False)
+            piid = iid
+            iid += 1
 
-    # ----------------------------------------------------
-    # frame1 has 3 data views in a tabbed control
-    # tab1 = list of all statement entries
-    # tab2 = tree view, weekly summary
-    # tab3 = tree view, monthly summary
+            for entry in summary.entries:
+                tags = ()
+                if not entry.included_weekly:
+                    tags = ('excluded',)
+                if entry.is_new:
+                    tags += ('new',)
 
-    frame1 = tk.Frame(master=window, width=600)
-    frame1.pack(pady=20, fill=tk.BOTH, side=tk.LEFT, expand=True)
-    frame2 = tk.Frame(master=window, width=400)
-    frame2.pack(fill=tk.BOTH, side=tk.TOP, expand=True)
-    frame3 = tk.Frame(master=window, width=400, bg="blue")
-    frame3.pack(fill=tk.BOTH, side=tk.TOP, expand=True)
+                self._tree_weekly.insert('', tk.END, iid=iid, values=child_values_summary_weekly_tree(entry),
+                                         open=False, tags=tags)
+                self._tree_weekly.move(iid, piid, iid - piid)
+                iid += 1
 
-    # tab control
-    tabs = ttk.Notebook(frame1, width=400)
-    tab_all = ttk.Frame(tabs)
-    tab_weekly = ttk.Frame(tabs)
-    tab_monthly = ttk.Frame(tabs)
-    tabs.add(tab_all, text='All')
-    tabs.add(tab_weekly, text='Weekly')
-    tabs.add(tab_monthly, text='Monthly')
-    tabs.pack(fill=tk.BOTH, expand=True)
+    # -----------------------------------------------------------------------
+    # populate weekly summary tree
+    def populate_monthly_summaries_tree(self) -> None:
+        self._tree_monthly.delete(*self._tree_monthly.get_children())
+        iid = 0
+        for summary in Database.monthly_summaries:
+            self._tree_monthly.insert('', tk.END, iid=iid, values=values_summary_monthly_tree(summary), open=False)
+            piid = iid
+            iid += 1
 
-    # ---------------------------------------------------
-    # set up the logger in frame 3
+            for entry in summary.entries:
+                tags = ()
+                if not entry.included_monthly:
+                    tags = ('excluded',)
+                if entry.is_new:
+                    tags += ('new',)
 
-    # logger scroll bar
-    logger_scroll = tk.Scrollbar(frame3)
-    logger_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+                self._tree_monthly.insert('', tk.END, iid=iid, values=child_values_summary_monthly_tree(entry),
+                                          open=False, tags=tags)
+                self._tree_monthly.move(iid, piid, iid - piid)
+                iid += 1
 
-    logger = tk.Listbox(frame3, yscrollcommand=logger_scroll.set)
-    logger.pack(fill=tk.BOTH, expand=True)
+    # -----------------------------------------------------------------------
+    # initialise GUI
+    def run(self) -> None:
 
-    # configure scroll bar
-    logger_scroll.config(command=logger.yview)
+        self._window = tk.Tk()
+        self._window.geometry("1200x600")
+    
+        style = ttk.Style()
+        style.map("Treeview",
+                  foreground=fixed_map(style, "foreground"),
+                  background=fixed_map(style, "background"))
+    
+        # ----------------------------------------------------
+        # frame1 has 3 data views in a tabbed control
+        # tab1 = list of all statement entries
+        # tab2 = tree view, weekly summary
+        # tab3 = tree view, monthly summary
+    
+        frame1 = tk.Frame(master=self._window, width=600)
+        frame1.pack(pady=20, fill=tk.BOTH, side=tk.LEFT, expand=True)
+        frame2 = tk.Frame(master=self._window, width=400)
+        frame2.pack(fill=tk.BOTH, side=tk.TOP, expand=True)
+        frame3 = tk.Frame(master=self._window, width=400, bg="blue")
+        frame3.pack(fill=tk.BOTH, side=tk.TOP, expand=True)
+    
+        # tab control
+        tabs = ttk.Notebook(frame1, width=400)
+        tab_all = ttk.Frame(tabs)
+        tab_weekly = ttk.Frame(tabs)
+        tab_monthly = ttk.Frame(tabs)
+        tabs.add(tab_all, text='All')
+        tabs.add(tab_weekly, text='Weekly')
+        tabs.add(tab_monthly, text='Monthly')
+        tabs.pack(fill=tk.BOTH, expand=True)
+    
+        # ---------------------------------------------------
+        # set up the logger in frame 3
+    
+        # logger scroll bar
+        logger_scroll = tk.Scrollbar(frame3)
+        logger_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+    
+        logger = tk.Listbox(frame3, yscrollcommand=logger_scroll.set)
+        logger.pack(fill=tk.BOTH, expand=True)
+    
+        # configure scroll bar
+        logger_scroll.config(command=logger.yview)
+    
+        # initialise logger
+        Logger.set_logger_listbox(logger)
+    
+        Logger.log_info(f'Python version {sys.version_info[0]}.{sys.version_info[1]}')
+    
+        # read the statement entries from file
+        Database.read_file(self._filename)
+        Database.generate_weekly_summaries()
+        Database.generate_monthly_summaries()
 
-    # initialise logger
-    Logger.set_logger_listbox(logger)
+        # all entries tree
+        columns = [['type',        'Type',         175],
+                   ['amount',      'Amount',        75],
+                   ['balance',     'Balance',       75],
+                   ['date',        'Date',          75],
+                   ['description', 'Description',  200],
+                   ['week_no',     'Week',          50],
+                   ['weekly',      'Weekly',        25],
+                   ['monthly',     'Monthly',       25],
+                   ['seq_no',      'Seq',           40]]
+    
+        self._tree_all = create_tree(tab_all, columns)
+        self.populate_all_entries_tree()
+    
+        # weekly summary tree view
+        columns = [['week_no',      'Week',          50],
+                   ['wdate',        'Date',         100],
+                   ['total',        'Total',         75],
+                   ['transactions', 'Transactions',  75],
+                   ['type',         'Type',         175],
+                   ['amount',       'Amount',        75],
+                   ['balance',      'Balance',       75],
+                   ['date',         'Date',         100],
+                   ['description',  'Description',  200],
+                   ['weekly',       'Weekly',        25],
+                   ['monthly',      'Monthly',       25],
+                   ['seq_no',       'Seq',           40]]
+    
+        self._tree_weekly = create_tree(tab_weekly, columns)
+        self.populate_weekly_summaries_tree()
+    
+        # monthly summary tree view
+        columns = [['month',        'Month',         50],
+                   ['total',        'Total',         75],
+                   ['transactions', 'Transactions',  75],
+                   ['type',         'Type',         175],
+                   ['amount',       'Amount',        75],
+                   ['balance',      'Balance',       75],
+                   ['date',         'Date',          75],
+                   ['description',  'Description',  200],
+                   ['weekly',       'Weekly',        25],
+                   ['monthly',      'Monthly',       25],
+                   ['seq_no',       'Seq',           40]]
+    
+        self._tree_monthly = create_tree(tab_monthly, columns)
+        self.populate_monthly_summaries_tree()
+    
+        # start the timer
+        self._window.after(1000, self.on_timer)
 
-    Logger.log_info(f'Python version {sys.version_info[0]}.{sys.version_info[1]}')
-
-    # read the statement entries from file
-    Database.read_file('E:\\_Ricks\\Python\\Starter5\\statement_v130.txt')
-    Database.generate_weekly_summaries()
-    Database.generate_monthly_summaries()
-    # StatementData.write_file('E:\\_Ricks\\Python\\Starter5\\statement_v130.txt')
-
-    # all entries tree
-    columns = [['type',        'Type',         175],
-               ['amount',      'Amount',        75],
-               ['balance',     'Balance',       75],
-               ['date',        'Date',          75],
-               ['description', 'Description',  200],
-               ['week_no',     'Week',          50],
-               ['weekly',      'Weekly',        25],
-               ['monthly',     'Monthly',       25],
-               ['seq_no',      'Seq',           40]]
-
-    tree_all = create_tree(tab_all, columns)
-    populate_all_entries_tree(tree_all)
-
-    # weekly summary tree view
-    columns = [['week_no',      'Week',          50],
-               ['wdate',        'Date',         100],
-               ['total',        'Total',         75],
-               ['transactions', 'Transactions',  75],
-               ['type',         'Type',         175],
-               ['amount',       'Amount',        75],
-               ['balance',      'Balance',       75],
-               ['date',         'Date',         100],
-               ['description',  'Description',  200],
-               ['weekly',       'Weekly',        25],
-               ['monthly',      'Monthly',       25],
-               ['seq_no',       'Seq',           40]]
-
-    tree_weekly = create_tree(tab_weekly, columns)
-    populate_weekly_summaries_tree(tree_weekly)
-
-    # monthly summary tree view
-    columns = [['month',        'Month',         50],
-               ['total',        'Total',         75],
-               ['transactions', 'Transactions',  75],
-               ['type',         'Type',         175],
-               ['amount',       'Amount',        75],
-               ['balance',      'Balance',       75],
-               ['date',         'Date',          75],
-               ['description',  'Description',  200],
-               ['weekly',       'Weekly',        25],
-               ['monthly',      'Monthly',       25],
-               ['seq_no',       'Seq',           40]]
-
-    tree_monthly = create_tree(tab_monthly, columns)
-    populate_monthly_summaries_tree(tree_monthly)
-
-    # start the timer
-    ClipboardHandler(window)
-
-    window.mainloop()
-
+        self._window.protocol("WM_DELETE_WINDOW", self.on_close)
+        self._window.mainloop()
+    
 
 # -----------------------------------------------------------------------
 # main
 if __name__ == "__main__":
 
-
-    run_ui()
+    ui = Main()
+    ui.run()
 
 
 
