@@ -11,12 +11,12 @@ import tkinter as tk
 from tkinter import messagebox as mb
 from tkinter import ttk
 
+
 # -----------------------------------------------------------------------
 # displayable values for the all tree
 def values_all_tree(entry: StatementData.StatementEntry) -> []:
     return [entry.entry_type_str, entry.amount_str, entry.balance_str, entry.date_str,
-            entry.description, entry.week_no_str, entry.included_weekly_str, entry.included_monthly_str,
-            entry.seq_no_str]
+            entry.description, entry.week_no_str, entry.included_summary, entry.seq_no_str]
 
 
 # -----------------------------------------------------------------------
@@ -29,7 +29,7 @@ def values_summary_weekly_tree(summary: StatementData.StatementSummary) -> []:
 # displayable values for the weekly summary entry tree child row
 def child_values_summary_weekly_tree(entry: StatementData.StatementEntry) -> []:
     return ['', '', '', '', entry.entry_type_str, entry.amount_str, entry.balance_str, entry.date_str,
-            entry.description, entry.included_weekly_str, entry.included_monthly_str, entry.seq_no_str]
+            entry.description, entry.included_summary, entry.seq_no_str]
 
 
 # -----------------------------------------------------------------------
@@ -42,7 +42,7 @@ def values_summary_monthly_tree(summary: StatementData.StatementSummary) -> []:
 # displayable values for the monthly summary entry tree child row
 def child_values_summary_monthly_tree(entry: StatementData.StatementEntry) -> []:
     return ['', '', '', entry.entry_type_str, entry.amount_str, entry.balance_str, entry.date_str,
-            entry.description, entry.included_weekly_str, entry.included_monthly_str, entry.seq_no_str]
+            entry.description, entry.included_summary, entry.seq_no_str]
 
 
 # -----------------------------------------------------------------------
@@ -250,8 +250,7 @@ class Main:
                    ['date',        'Date',          75],
                    ['description', 'Description',  200],
                    ['week_no',     'Week',          50],
-                   ['weekly',      'Weekly',        25],
-                   ['monthly',     'Monthly',       25],
+                   ['included',    'Included',      40],
                    ['seq_no',      'Seq',           40]]
     
         self._tree_all = create_tree(tab_all, columns)
@@ -267,8 +266,7 @@ class Main:
                    ['balance',      'Balance',       75],
                    ['date',         'Date',         100],
                    ['description',  'Description',  200],
-                   ['weekly',       'Weekly',        25],
-                   ['monthly',      'Monthly',       25],
+                   ['included',    'Included',       40],
                    ['seq_no',       'Seq',           40]]
     
         self._tree_weekly = create_tree(tab_weekly, columns)
@@ -283,8 +281,7 @@ class Main:
                    ['balance',      'Balance',       75],
                    ['date',         'Date',          75],
                    ['description',  'Description',  200],
-                   ['weekly',       'Weekly',        25],
-                   ['monthly',      'Monthly',       25],
+                   ['included',    'Included',       40],
                    ['seq_no',       'Seq',           40]]
     
         self._tree_monthly = create_tree(tab_monthly, columns)

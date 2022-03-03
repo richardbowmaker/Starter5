@@ -59,7 +59,7 @@ def next_seq_no() -> int:
 
 # -----------------------------------------------------
 # reset sequence number
-def reset_seq_no() -> int:
+def reset_seq_no() -> None:
     global seq_no
     seq_no = -1
 

@@ -2,13 +2,15 @@
 import tkinter as tk
 from tkinter import ttk
 
+list_box: tk.Listbox = None
+
 
 def set_logger_listbox(lb: tk.Listbox) -> None:
     global list_box
     list_box = lb
 
 
-def log_info(text: str) ->None:
+def log_info(text: str) -> None:
     list_box.insert(tk.END, text)
 
 

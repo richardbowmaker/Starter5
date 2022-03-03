@@ -300,6 +300,17 @@ class StatementEntry:
         self._included_monthly = value
 
     # -----------------------------------------------------------------------
+    # inclusion flags summary
+    @property
+    def included_summary(self):
+        s = ""
+        if self._included_weekly:
+            s += 'W'
+        if self._included_monthly:
+            s += 'M'
+        return s
+
+    # -----------------------------------------------------------------------
     # description accessors
     @property
     def description(self):
