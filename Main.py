@@ -191,6 +191,14 @@ class Main:
 
         self._window = tk.Tk()
         self._window.geometry("1200x600")
+
+        panedwindow = ttk.Panedwindow(self._window, orient=tk.HORIZONTAL)
+        panedwindow.pack(fill=tk.BOTH, expand=True)
+        # Create Frams
+        frame1 = ttk.Frame(panedwindow, width=400, height=300, relief=tk.SUNKEN)
+        frame2 = ttk.Frame(panedwindow, width=100, height=400, relief=tk.SUNKEN)
+        panedwindow.add(frame1, weight=4)
+        panedwindow.add(frame2, weight=1)
     
         style = ttk.Style()
         style.map("Treeview",
@@ -203,13 +211,6 @@ class Main:
         # tab2 = tree view, weekly summary
         # tab3 = tree view, monthly summary
     
-        frame1 = tk.Frame(master=self._window, width=600)
-        frame1.pack(pady=20, fill=tk.BOTH, side=tk.LEFT, expand=True)
-        frame2 = tk.Frame(master=self._window, width=400)
-        frame2.pack(fill=tk.BOTH, side=tk.TOP, expand=True)
-        frame3 = tk.Frame(master=self._window, width=400, bg="blue")
-        frame3.pack(fill=tk.BOTH, side=tk.TOP, expand=True)
-    
         # tab control
         tabs = ttk.Notebook(frame1, width=400)
         tab_all = ttk.Frame(tabs)
@@ -221,13 +222,13 @@ class Main:
         tabs.pack(fill=tk.BOTH, expand=True)
     
         # ---------------------------------------------------
-        # set up the logger in frame 3
+        # set up the logger in frame 2
     
         # logger scroll bar
-        logger_scroll = tk.Scrollbar(frame3)
+        logger_scroll = tk.Scrollbar(frame2)
         logger_scroll.pack(side=tk.RIGHT, fill=tk.Y)
     
-        logger = tk.Listbox(frame3, yscrollcommand=logger_scroll.set)
+        logger = tk.Listbox(frame2, yscrollcommand=logger_scroll.set)
         logger.pack(fill=tk.BOTH, expand=True)
     
         # configure scroll bar
@@ -297,6 +298,22 @@ class Main:
 # -----------------------------------------------------------------------
 # main
 if __name__ == "__main__":
+
+    # root = tk.Tk()
+    # root.geometry("1200x600")
+    # # App Title
+    # root.title("Python GUI Application ")
+    # # ttk.Label(root, text="Separating widget").pack()
+    # # Create Panedwindow
+    # panedwindow = ttk.Panedwindow(root, orient=tk.HORIZONTAL)
+    # panedwindow.pack(fill=tk.BOTH, expand=True)
+    # # Create Frams
+    # fram1 = ttk.Frame(panedwindow, width=400, height=300, relief=tk.SUNKEN)
+    # fram2 = ttk.Frame(panedwindow, width=100, height=400, relief=tk.SUNKEN)
+    # panedwindow.add(fram1, weight=4)
+    # panedwindow.add(fram2, weight=1)
+    # # Calling Main()
+    # root.mainloop()
 
     ui = Main()
     ui.run()
