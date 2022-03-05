@@ -4,6 +4,7 @@ import Database as Database
 import StatementData as StatementData
 import datetime as datetime
 import locale as locale
+from enum import Enum
 
 
 def parse_statement(s: str) -> bool:
@@ -30,20 +31,29 @@ def parse_statement(s: str) -> bool:
         return False
 
 
+class ParseState(Enum):
+    PRE_PARSE = 0
+    PARSING = 1
+    POST_PARSE = 2
+
+
 def parse_santander_current_account_statement(lines: []) -> bool:
     Logger.log_info('parsing santander current account statement')
-
-    data = False
+    Database.clear_parsed_text()
+    state = ParseState.PRE_PARSE
     count = 0
     new_count = 0
 
     for line in lines:
-        if line == 'Date	Description	Money in	Money out	Balance':
-            # start parsing data
-            data = True
-            continue
 
-        if data:
+        if state == ParseState.PRE_PARSE:
+            Database.add_parsed_line(False, line)
+
+            if line == 'Date	Description	Money in	Money out	Balance':
+                state = ParseState.PARSING
+                continue
+
+        if state == ParseState.PARSING:
             try:
 
                 # 24/02/2022	**3878	GOOGLE PAY CHIPPENHAM CAFFE NERO CHIPPENHAM		£4.35
@@ -53,35 +63,41 @@ def parse_santander_current_account_statement(lines: []) -> bool:
 
                 if len(ds) != 3:
                     # end of data
-                    break
-
-                date = datetime.date(int(ds[2]), int(ds[1]), int(ds[0]))
-                entry = StatementData.StatementEntry()
-                entry.entry_type = StatementData.StatementEntryType.SANTANDER_CURRENT_ACCOUNT
-                entry.balance = locale.atof(ts[4].replace('£', '').replace(',', ''))
-                entry.date = date
-                entry.week_no = calculate_week_no(date)
-                entry.description = ts[1]
-
-                if len(ts[2]) == 0:
-                    entry.amount = -locale.atof(ts[3].replace('£', '').replace(',', ''))
+                    state = ParseState.POST_PARSE
                 else:
-                    entry.amount = locale.atof(ts[2].replace('£', '').replace(',', ''))
+                    date = datetime.date(int(ds[2]), int(ds[1]), int(ds[0]))
+                    entry = StatementData.StatementEntry()
+                    entry.type = StatementData.StatementEntryType.SANTANDER_CURRENT_ACCOUNT
+                    entry.balance = locale.atof(ts[4].replace('£', '').replace(',', ''))
+                    entry.date = date
+                    entry.week_no = calculate_week_no(date)
+                    entry.description = ts[1]
 
-                entry.included_weekly = is_weekly_included(entry)
-                entry.included_monthly = is_monthly_included(entry)
+                    if len(ts[2]) == 0:
+                        entry.amount = -locale.atof(ts[3].replace('£', '').replace(',', ''))
+                    else:
+                        entry.amount = locale.atof(ts[2].replace('£', '').replace(',', ''))
 
-                count += 1
-                entry.seq_no = Database.next_seq_no()
+                    entry.included_weekly = is_weekly_included(entry)
+                    entry.included_monthly = is_monthly_included(entry)
 
-                if Database.add_statement_entry(Database.statement_entries, entry):
-                    # previously unseen entry
-                    new_count += 1
-                    entry.is_new = True
+                    count += 1
+                    entry.seq_no = Database.next_seq_no()
+
+                    if Database.add_statement_entry(Database.statement_entries, entry):
+                        # previously unseen entry
+                        new_count += 1
+                        entry.is_new = True
+
+                    Database.add_parsed_line(True, line)
 
             except ValueError as ex:
-                Logger.log_error('error parsing line \'{line}\': {repr(ex)}')
-                break
+                Logger.log_error(f'error parsing line \'{line}\': {repr(ex)}')
+                Database.add_parsed_line(False, '**** Error ***')
+                state = ParseState.POST_PARSE
+
+        if state == ParseState.POST_PARSE:
+            Database.add_parsed_line(False, line)
 
     Logger.log_info(f'Parsed Santander current account, {new_count} of {count} entries are new')
     return new_count > 0
@@ -89,134 +105,154 @@ def parse_santander_current_account_statement(lines: []) -> bool:
 
 def parse_santander_credit_card_statement(lines: []) -> bool:
     Logger.log_info('parsing santander credit card statement')
-
-    data = False
+    Database.clear_parsed_text()
+    state = ParseState.PRE_PARSE
     count = 0
     new_count = 0
 
     for line in lines:
-        if line == 'Date	Card no.	Description	Money in	Money out':
-            # start parsing data
-            data = True
-            continue
 
-        if data:
+        if state == ParseState.PRE_PARSE:
+            Database.add_parsed_line(False, line)
+
+            if line == 'Date	Card no.	Description	Money in	Money out':
+                state = ParseState.PARSING
+                continue
+
+        if state == ParseState.PARSING:
             try:
                 # 24/02/2022	**3878	GOOGLE PAY CHIPPENHAM CAFFE NERO CHIPPENHAM		£4.35
                 # 0 - date, 1 - card no, 2 - description, 3 - credit, 4 - debit
 
                 # end of data
                 if len(line) < 10:
-                    break
-
-                ts = line.split('\t')
-                ds = ts[0].split('/')
-
-                if len(ds) != 3:
-                    # end of data
-                    break
-
-                date = datetime.date(int(ds[2]), int(ds[1]), int(ds[0]))
-                entry = StatementData.StatementEntry()
-                entry.entry_type = StatementData.StatementEntryType.SANTANDER_CREDIT_CARD
-                entry.date = date
-                entry.week_no = calculate_week_no(date)
-                entry.description = ts[2]
-
-                if len(ts[3]) == 0:
-                    entry.amount = -locale.atof(ts[4].replace('£', '').replace(',', ''))
+                    state = ParseState.POST_PARSE
                 else:
-                    entry.amount = locale.atof(ts[3].replace('£', '').replace(',', ''))
+                    ts = line.split('\t')
+                    ds = ts[0].split('/')
 
-                entry.included_weekly = is_weekly_included(entry)
-                entry.included_monthly = is_monthly_included(entry)
+                    if len(ds) != 3:
+                        state = ParseState.POST_PARSE
+                    else:
+                        date = datetime.date(int(ds[2]), int(ds[1]), int(ds[0]))
+                        entry = StatementData.StatementEntry()
+                        entry.type = StatementData.StatementEntryType.SANTANDER_CREDIT_CARD
+                        entry.date = date
+                        entry.week_no = calculate_week_no(date)
+                        entry.description = ts[2]
 
-                count += 1
-                entry.seq_no = Database.next_seq_no()
+                        if len(ts[3]) == 0:
+                            entry.amount = -locale.atof(ts[4].replace('£', '').replace(',', ''))
+                        else:
+                            entry.amount = locale.atof(ts[3].replace('£', '').replace(',', ''))
 
-                if Database.add_statement_entry(Database.statement_entries, entry):
-                    # previously unseen entry
-                    new_count += 1
-                    entry.is_new = True
+                        entry.included_weekly = is_weekly_included(entry)
+                        entry.included_monthly = is_monthly_included(entry)
+
+                        count += 1
+                        entry.seq_no = Database.next_seq_no()
+
+                        if Database.add_statement_entry(Database.statement_entries, entry):
+                            # previously unseen entry
+                            new_count += 1
+                            entry.is_new = True
+
+                        Database.add_parsed_line(True, line)
 
             except ValueError as ex:
-                Logger.log_error('error parsing line \'{line}\': {repr(ex)}')
-                break
+                Logger.log_error(f'error parsing line \'{line}\': {repr(ex)}')
+                Database.add_parsed_line(False, '**** Error ***')
+                state = ParseState.POST_PARSE
+
+        if state == ParseState.POST_PARSE:
+            Database.add_parsed_line(False, line)
 
     Logger.log_info(f'Parsed Santander credit card statement, {new_count} of {count} entries are new')
     return new_count > 0
 
 
 def parse_cash_plus_statement(lines: []) -> bool:
-    Logger.log_info('parsing santander credit card statement')
-
-    data = False
+    Logger.log_info('parsing cashplus statement')
+    Database.clear_parsed_text()
+    state = ParseState.PRE_PARSE
     count = 0
     new_count = 0
     ln = 0
 
     while ln < len(lines):
 
-        if lines[ln] == 'Balance':
-            # start parsing data
-            data = True
-            ln += 1
-            continue
+        if state == ParseState.PRE_PARSE:
+            Database.add_parsed_line(False, lines[ln])
 
-        if data:
+            if lines[ln] == 'Balance':
+                state = ParseState.PARSING
+                ln += 1
+                continue
+
+        if state == ParseState.PARSING:
             try:
+
                 # 03/03/2022 5587
                 # Auth: MIPERMIT, CHIPPENHAM, GBR
                 # £1.10
 
                 # end of data
                 if len(lines[ln]) < 10:
-                    break
-
-                # parse date
-                ts = lines[ln].split('\t')
-                ds = ts[0].strip().split('/')
-                if len(ds) < 3:
-                    # end of data
-                    break
-                date = datetime.date(int(ds[2]), int(ds[1]), int(ds[0]))
-
-                entry = StatementData.StatementEntry()
-                entry.entry_type = StatementData.StatementEntryType.CASH_PLUS
-                entry.date = date
-                entry.week_no = calculate_week_no(date)
-                entry.description = lines[ln + 1]
-
-                # amount
-                ln += 2
-                ts = lines[ln].split('\t')
-
-                if len(ts) == 2:
-                    # debit
-                    entry.amount = -locale.atof(ts[0].replace('£', '').replace(',', ''))
-                    # first entry does not include the balance
-                    if len(ts[1]) > 0:
-                        entry.balance = locale.atof(ts[1].replace('£', '').replace(',', ''))
+                    state = ParseState.POST_PARSE
                 else:
-                    # credit
-                    entry.amount = locale.atof(ts[0].replace('£', '').replace(',', ''))
-                    if len(ts[2]) > 0:
-                        entry.balance = locale.atof(ts[2].replace('£', '').replace(',', ''))
+                    # parse date
+                    ts = lines[ln].split('\t')
+                    ds = ts[0].strip().split('/')
 
-                entry.included_weekly = is_weekly_included(entry)
-                entry.included_monthly = is_monthly_included(entry)
+                    if len(ds) < 3:
+                        state = ParseState.POST_PARSE
+                    else:
+                        date = datetime.date(int(ds[2]), int(ds[1]), int(ds[0]))
 
-                count += 1
-                entry.seq_no = Database.next_seq_no()
+                        entry = StatementData.StatementEntry()
+                        entry.type = StatementData.StatementEntryType.CASH_PLUS
+                        entry.date = date
+                        entry.week_no = calculate_week_no(date)
+                        entry.description = lines[ln + 1]
 
-                if Database.add_statement_entry(Database.statement_entries, entry):
-                    # previously unseen entry
-                    new_count += 1
-                    entry.is_new = True
+                        # amount
+                        ln += 2
+                        ts = lines[ln].split('\t')
+
+                        if len(ts) == 2:
+                            # debit
+                            entry.amount = -locale.atof(ts[0].replace('£', '').replace(',', ''))
+                            # first entry does not include the balance
+                            if len(ts[1]) > 0:
+                                entry.balance = locale.atof(ts[1].replace('£', '').replace(',', ''))
+                        else:
+                            # credit
+                            entry.amount = locale.atof(ts[0].replace('£', '').replace(',', ''))
+                            if len(ts[2]) > 0:
+                                entry.balance = locale.atof(ts[2].replace('£', '').replace(',', ''))
+
+                        entry.included_weekly = is_weekly_included(entry)
+                        entry.included_monthly = is_monthly_included(entry)
+
+                        count += 1
+                        entry.seq_no = Database.next_seq_no()
+
+                        if Database.add_statement_entry(Database.statement_entries, entry):
+                            # previously unseen entry
+                            new_count += 1
+                            entry.is_new = True
+
+                        Database.add_parsed_line(True, lines[ln - 2])
+                        Database.add_parsed_line(True, lines[ln - 1])
+                        Database.add_parsed_line(True, lines[ln])
 
             except ValueError as ex:
-                Logger.log_error('error parsing line \'{line}\': {repr(ex)}')
-                break
+                Logger.log_error(f'error parsing line \'{lines[ln]}\': {repr(ex)}')
+                Database.add_parsed_line(False, '**** Error ***')
+                state = ParseState.POST_PARSE
+
+        if state == ParseState.POST_PARSE:
+            Database.add_parsed_line(False, lines[ln])
 
         ln += 1
 
@@ -245,4 +281,4 @@ def is_weekly_included(entry: StatementData.StatementEntry) -> bool:
 
 
 def is_monthly_included(entry: StatementData.StatementEntry) -> bool:
-    return entry.amount < 0 and entry.amount > -1000 and entry.entry_type == StatementData.StatementEntryType.SANTANDER_CURRENT_ACCOUNT
+    return entry.amount < 0 and entry.amount > -1000 and entry.type == StatementData.StatementEntryType.SANTANDER_CURRENT_ACCOUNT

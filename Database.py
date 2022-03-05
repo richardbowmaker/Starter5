@@ -10,6 +10,9 @@ statement_entries: list = []
 weekly_summaries: list = []
 monthly_summaries: list = []
 
+# parsed text, list of tuples (valid data: bool, text line: str)
+parsed_text = []
+
 # does data need committing to file
 is_dirty: bool = False
 
@@ -81,6 +84,8 @@ def read_file(file_name: str) -> bool:
             vers: float = 1.2
         elif ls[0][:-1] == "Money Reckoner 1.30":
             vers: float = 1.3
+        elif ls[0][:-1] == "Money Reckoner 1.40":
+            vers: float = 1.4
         else:
             raise RuntimeError(f'Invalid header \'{ls[0]}\' in file \'{file_name}\'')
 
@@ -117,7 +122,7 @@ def write_file (filename: str) -> bool:
 
     try:
         with open(filename, mode='w', encoding="utf-8") as f:
-            f.write("Money Reckoner 1.30\n")
+            f.write("Money Reckoner 1.40\n")
             global statement_entries
             for se in statement_entries:
                 f.write(se.to_csv())
@@ -204,4 +209,12 @@ def generate_monthly_summaries() -> None:
         monthly_summaries.append(summary)
 
 
+def clear_parsed_text():
+    global parsed_text
+    parsed_text = []
+
+
+def add_parsed_line(contains_data: bool, line: str):
+    global parsed_text
+    parsed_text.append((contains_data, line))
 
