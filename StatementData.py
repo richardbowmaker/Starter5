@@ -135,7 +135,7 @@ class StatementSummary:
 class StatementEntry:
 
     def __init__(self,
-                 entry_type: StatementEntryType = StatementEntryType.NONE,
+                 type: StatementEntryType = StatementEntryType.NONE,
                  amount: float = 0.0,
                  balance: float = 0.0,
                  date: datetime.date = datetime.date(2000, 1, 1),
@@ -144,7 +144,7 @@ class StatementEntry:
                  included_weekly: bool = False,
                  included_monthly: bool = False,
                  description: str = "") -> None:
-        self._entry_type = entry_type
+        self._type = type
         self._amount = amount
         self._balance = balance
         self._date = date
@@ -155,37 +155,41 @@ class StatementEntry:
         self._included_monthly = included_monthly
         self._description = description
         self._is_new = False
+        self._user_excluded = False
+        # position in Database.statement_entries
+        self._index = -1
 
     # -----------------------------------------------------------------------
     def __str__(self) -> str:
         return '{}, {}, {}, {}, {}, {}, {}'.format(
-            str(self._entry_type) ,
+            str(self._type) ,
             self.amount_str,
             self.balance_str,
             self.date_str,
             self.week_no_str,
-            self.seq_no_str,
-            self._description)
+            self._description,
+            self.included_summary,
+            self.seq_no_str)
 
     # -----------------------------------------------------------------------
     def __eq__(self, other) -> bool:
         return self.date == other.date and \
-                self.entry_type == other.entry_type and \
-                self.seq_no == other.seq_no
+               self.type == other.type and \
+               self.seq_no == other.seq_no
 
     # -----------------------------------------------------------------------
     # entry type accessors
     @property
-    def entry_type(self):
-        return self._entry_type
+    def type(self):
+        return self._type
 
     @property
-    def entry_type_str(self) -> str:
-        return str(self._entry_type)
+    def type_str(self) -> str:
+        return str(self._type)
 
-    @entry_type.setter
-    def entry_type(self, value) -> None:
-        self._entry_type = value
+    @type.setter
+    def type(self, value) -> None:
+        self._type = value
 
     # -----------------------------------------------------------------------
     # amount accessors
@@ -300,6 +304,23 @@ class StatementEntry:
         self._included_monthly = value
 
     # -----------------------------------------------------------------------
+    # user excluded accessors
+    @property
+    def user_excluded(self) -> bool:
+        return self._user_excluded
+
+    @property
+    def user_excluded_str(self) -> str:
+        if self._user_excluded:
+            return "*"
+        else:
+            return ""
+
+    @user_excluded.setter
+    def user_excluded(self, value) -> None:
+        self._user_excluded = value
+
+    # -----------------------------------------------------------------------
     # inclusion flags summary
     @property
     def included_summary(self):
@@ -308,6 +329,8 @@ class StatementEntry:
             s += 'W'
         if self._included_monthly:
             s += 'M'
+        if self._user_excluded:
+            s += 'X'
         return s
 
     # -----------------------------------------------------------------------
@@ -331,11 +354,27 @@ class StatementEntry:
         self._is_new = value
 
     # -----------------------------------------------------------------------
+    # index accessors
+    @property
+    def index(self):
+        return self._index
+
+    @index.setter
+    def index(self, value) -> None:
+        self._index = value
+
+    # -----------------------------------------------------------------------
+    # month str accessors
+    @property
+    def month_str(self):
+        return '{:02d}/{:04d}'.format(self._date.month, self._date.year)
+
+    # -----------------------------------------------------------------------
     # create a line of csv, comma separated with double quotes around each field
     # as the current fields have comma delimiters
     def to_csv(self) -> str:
-        return '\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\"'.format(
-            str(self._entry_type),
+        return '\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\"'.format(
+            str(self._type),
             self.amount_str,
             self.balance_str,
             self.date_str,
@@ -343,7 +382,8 @@ class StatementEntry:
             self.seq_no_str,
             self.included_weekly_str,
             self.included_monthly_str,
-            self._description)
+            self._description,
+            self._user_excluded)
 
     # -----------------------------------------------------------------------
     # read from a line of csv
@@ -357,7 +397,7 @@ class StatementEntry:
     def from_csv(self, csvstr: str, ver: float) -> bool:
         if ver == 1.1:
             return self.from_csv_v1_10(csvstr)
-        elif ver == 1.2 or ver == 1.3:
+        elif ver == 1.2 or ver == 1.3 or ver == 1.4:
             return self.from_csv_v1_20(csvstr)
 
     # -----------------------------------------------------------------------
@@ -370,7 +410,7 @@ class StatementEntry:
             ts = csv_str.split(',', 6)
 
             # type
-            self._entry_type = StatementEntryType.NONE.from_str(ts[0].strip())
+            self._type = StatementEntryType.NONE.from_str(ts[0].strip())
             # amount
             self._amount = locale.atof(ts[1].replace('£', '').replace(',', ''))
 
@@ -397,7 +437,7 @@ class StatementEntry:
             return False
 
     # -----------------------------------------------------------------------
-    # parse data from CSV string taken from file V1.20 and V1.30
+    # parse data from CSV string taken from file V1.20, V1.30 and V1.40
     def from_csv_v1_20(self, csv_str: str) -> bool:
 
         try:
@@ -407,7 +447,7 @@ class StatementEntry:
             ts = next(reader)
 
             # type
-            self._entry_type = StatementEntryType.NONE.from_str(ts[0].strip())
+            self._type = StatementEntryType.NONE.from_str(ts[0].strip())
 
             # amount
             self._amount = locale.atof(ts[1].replace('£', '').replace(',', '').strip())
@@ -438,6 +478,13 @@ class StatementEntry:
             # description
             self._description = ts[8].strip()
 
+            # user excluded
+            if len(ts) > 9:
+                if ts[9] == 'True':
+                    self.user_excluded = True
+                else:
+                    self._user_excluded = False
+
             return True
 
         except ValueError as e:
@@ -446,7 +493,7 @@ class StatementEntry:
 
 
 def is_equal_statement_entries(se1: StatementEntry, se2: StatementEntry) -> bool:
-    return se1.entry_type == se2.entry_type and \
+    return se1.type == se2.type and \
            se1.date == se2.date and \
            se1.amount == se2.amount and \
            se1.balance == se2.balance
@@ -462,8 +509,8 @@ def compare_statement_entries(se1: StatementEntry, se2: StatementEntry) -> int:
         return 1
 
     # then sort by type
-    if se1.entry_type != se2.entry_type:
-        if se1.entry_type < se2.entry_type:
+    if se1.type != se2.type:
+        if se1.type < se2.type:
             return -1
         else:
             return 1

@@ -84,10 +84,15 @@ def parse_santander_current_account_statement(lines: []) -> bool:
                     count += 1
                     entry.seq_no = Database.next_seq_no()
 
-                    if Database.add_statement_entry(Database.statement_entries, entry):
-                        # previously unseen entry
+                    n = Database.add_statement_entry(Database.statement_entries, entry)
+                    if n != -1:
+                        # new entry
                         new_count += 1
                         entry.is_new = True
+                        entry.index = n
+                    else:
+                        entry.is_new = False
+                        entry.index = -1
 
                     Database.add_parsed_line(True, line)
 
@@ -152,10 +157,15 @@ def parse_santander_credit_card_statement(lines: []) -> bool:
                         count += 1
                         entry.seq_no = Database.next_seq_no()
 
-                        if Database.add_statement_entry(Database.statement_entries, entry):
-                            # previously unseen entry
+                        n = Database.add_statement_entry(Database.statement_entries, entry)
+                        if n != -1:
+                            # new entry
                             new_count += 1
                             entry.is_new = True
+                            entry.index = n
+                        else:
+                            entry.is_new = False
+                            entry.index = -1
 
                         Database.add_parsed_line(True, line)
 
@@ -237,10 +247,16 @@ def parse_cash_plus_statement(lines: []) -> bool:
                         count += 1
                         entry.seq_no = Database.next_seq_no()
 
-                        if Database.add_statement_entry(Database.statement_entries, entry):
-                            # previously unseen entry
+                        n = Database.add_statement_entry(Database.statement_entries, entry)
+                        if n != -1:
+                            # new entry
                             new_count += 1
                             entry.is_new = True
+                            entry.index = n
+                        else:
+                            entry.is_new = False
+                            entry.index = -1
+
 
                         Database.add_parsed_line(True, lines[ln - 2])
                         Database.add_parsed_line(True, lines[ln - 1])

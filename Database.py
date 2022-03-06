@@ -36,20 +36,23 @@ def get_is_dirty():
 
 # ------------------------------------------------------
 # add entry to statement entries list in the correct order
-# returns true if added to list, false if it already exists in the list
-def add_statement_entry(entries: [], entry: StatementData.StatementEntry) -> bool:
+# returns position in list if added to list, -1 if it already exists in the list
+def add_statement_entry(entries: [], entry: StatementData.StatementEntry) -> int:
 
-    for n in range(len(entries)):
+    n = 0
+    while n < len(entries):
 
         if StatementData.is_equal_statement_entries(entry, entries[n]):
-            return False
+            return -1
 
         if StatementData.compare_statement_entries(entry, entries[n]) == -1:
             entries.insert(n, entry)
-            return True
+            return n
+
+        n += 1
 
     entries.append(entry)
-    return True
+    return n
 
 
 # -----------------------------------------------------
@@ -93,7 +96,7 @@ def read_file(file_name: str) -> bool:
         for n in range(1, len(ls)):
             entry = StatementData.StatementEntry()
             if entry.from_csv(ls[n], vers):
-                add_statement_entry(statement_entries, entry)
+                entry.index = add_statement_entry(statement_entries, entry)
             else:
                 Logger.log_error(f'Error parsing line ({n}) : \'{ls[n]}\'')
                 return False
@@ -145,76 +148,115 @@ def generate_weekly_summaries() -> None:
     week_no = 0
     summary = StatementData.StatementSummary()
 
-    for se in statement_entries:
-        if week_no != se.week_no:
+    for entry in statement_entries:
+        if week_no != entry.week_no:
 
             # new week
-            week_no = se.week_no
+            week_no = entry.week_no
 
             # add previous summary to summaries list
             if len(summary.entries) > 0:
+                calculate_weekly_summary(summary)
                 weekly_summaries.append(summary)
 
             # start summary for the new week
             summary = StatementData.StatementSummary()
-            summary.summary_id = f'{week_no}'
+            summary.summary_id = entry.week_no_str
 
             # set summary date to the start of the week
-            summary.summary_date = copy.copy(se.date) - datetime.timedelta(days=se.date.weekday())
+            summary.summary_date = copy.copy(entry.date) - datetime.timedelta(days=entry.date.weekday())
 
         # accumulate summary data
-        if se.included_weekly:
-            summary.total -= se.amount
-        summary.transactions += 1
-        add_statement_entry(summary.entries, se)
+        add_statement_entry(summary.entries, entry)
 
     # add final summary to summaries list
     if len(summary.entries) > 0:
+        calculate_weekly_summary(summary)
         weekly_summaries.append(summary)
+
+
+# ------------------------------------------------------
+def calculate_weekly_summary(summary: StatementData.StatementSummary) -> None:
+    summary.total = 0
+    summary.transactions = 0
+    for entry in summary.entries:
+        if entry.included_weekly and not entry.user_excluded:
+            summary.total -= entry.amount
+            summary.transactions += 1
 
 
 # ------------------------------------------------------
 def generate_monthly_summaries() -> None:
     global monthly_summaries
     monthly_summaries = []
-    month = ''
+    ms = ''
     summary = StatementData.StatementSummary()
 
-    for se in statement_entries:
-        ms = f'{se.date.month}\\{se.date.year}'
-        if month != ms:
+    for entry in statement_entries:
+        if ms != entry.month_str:
 
             # new month
-            month = ms
+            ms = entry.month_str
 
             # add previous summary to summaries list
             if len(summary.entries) > 0:
+                calculate_monthly_summary(summary)
                 monthly_summaries.append(summary)
 
-            # start summary for the new month
+            # start summary for the new ms
             summary = StatementData.StatementSummary()
             summary.summary_id = ms
 
             # set summary date to the start of the week
-            summary.summary_date = datetime.date(se.date.year, se.date.month, 1)
+            summary.summary_date = datetime.date(entry.date.year, entry.date.month, 1)
 
-        # accumulate summary data
-        if se.included_monthly:
-            summary.total -= se.amount
-        summary.transactions += 1
-        add_statement_entry(summary.entries, se)
+        add_statement_entry(summary.entries, entry)
 
     # add final summary to summaries list
     if len(summary.entries) > 0:
+        calculate_monthly_summary(summary)
         monthly_summaries.append(summary)
 
 
+# ------------------------------------------------------
+def calculate_monthly_summary(summary: StatementData.StatementSummary) -> None:
+    summary.total = 0
+    summary.transactions = 0
+    for entry in summary.entries:
+        if entry.included_monthly and not entry.user_excluded:
+            summary.total -= entry.amount
+            summary.transactions += 1
+
+
+# ------------------------------------------------------
 def clear_parsed_text():
     global parsed_text
     parsed_text = []
 
 
+# ------------------------------------------------------
 def add_parsed_line(contains_data: bool, line: str):
     global parsed_text
     parsed_text.append((contains_data, line))
+
+
+# ------------------------------------------------------
+def update_user_excluded(entry: StatementData.StatementEntry):
+
+    # toggle user exclusion
+    entry.user_excluded = not entry.user_excluded
+
+    # update weekly summary
+    for summary in weekly_summaries:
+        if summary.summary_id == entry.week_no_str:
+            calculate_weekly_summary(summary)
+            break
+
+    # update monthly summary
+    for summary in monthly_summaries:
+        if summary.summary_id == entry.month_str:
+            calculate_monthly_summary(summary)
+            break
+
+    set_dirty()
 

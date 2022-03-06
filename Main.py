@@ -145,14 +145,14 @@ class Main:
         # clear tree
         self._tree_all.delete(*self._tree_all.get_children())
         # for entry in Database.statement_entries:
-        for n in range(0, len(Database.statement_entries)):
-            entry = Database.statement_entries[n]
+        for entry in Database.statement_entries:
             tags = ()
             if entry.is_new:
                 tags += ('new',)
 
             # store index into data collection as text attribute
-            self._tree_all.insert('', tk.END, values=values_all_tree(entry), open=False, tags=tags, text=f'{n}')
+            self._tree_all.insert('', tk.END, values=values_all_tree(entry), open=False, tags=tags,
+                                  text=f'{entry.index}')
 
     # -----------------------------------------------------------------------
     # populate weekly summary tree
@@ -160,21 +160,21 @@ class Main:
         self._tree_weekly.delete(*self._tree_weekly.get_children())
         iid = 0
         for summary in Database.weekly_summaries:
-            self._tree_weekly.insert('', tk.END, iid=iid, values=values_summary_weekly_tree(summary), open=False)
+            self._tree_weekly.insert('', tk.END, iid=iid, values=values_summary_weekly_tree(summary),
+                                     open=False, text='')
             piid = iid
             iid += 1
 
             # for entry in Database.summary.entries:
-            for n in range(0, len(summary.entries)):
-                entry = summary.entries[n]
+            for entry in summary.entries:
                 tags = ()
-                if not entry.included_weekly:
+                if not entry.included_weekly or entry.user_excluded:
                     tags += ('excluded',)
                 if entry.is_new:
                     tags += ('new',)
 
                 self._tree_weekly.insert('', tk.END, iid=iid, values=child_values_summary_weekly_tree(entry),
-                                         open=False, tags=tags)
+                                         open=False, tags=tags, text=f'{entry.index}')
                 self._tree_weekly.move(iid, piid, iid - piid)
                 iid += 1
 
@@ -184,19 +184,20 @@ class Main:
         self._tree_monthly.delete(*self._tree_monthly.get_children())
         iid = 0
         for summary in Database.monthly_summaries:
-            self._tree_monthly.insert('', tk.END, iid=iid, values=values_summary_monthly_tree(summary), open=False)
+            self._tree_monthly.insert('', tk.END, iid=iid, values=values_summary_monthly_tree(summary), open=False,
+                                      text='')
             piid = iid
             iid += 1
 
             for entry in summary.entries:
                 tags = ()
-                if not entry.included_monthly:
+                if not entry.included_monthly or entry.user_excluded:
                     tags += ('excluded',)
                 if entry.is_new:
                     tags += ('new',)
 
                 self._tree_monthly.insert('', tk.END, iid=iid, values=child_values_summary_monthly_tree(entry),
-                                          open=False, tags=tags)
+                                          open=False, tags=tags, text=f'{entry.index}')
                 self._tree_monthly.move(iid, piid, iid - piid)
                 iid += 1
 
@@ -228,31 +229,48 @@ class Main:
     def on_toggle_exclude_entry(self):
 
         try:
-
             # get selected tab
             st = self._tabs.tab(self._tabs.select(), "text")
             Logger.log_info(f'tab {st}')
 
+            tree = None
             if st == 'All':
-                sel_items = self._tree_all.selection()
-                if len(sel_items) == 1:
-                    # get index into all entries collection
-                    item = sel_items[0]
-                    ix = int(self._tree_all.item(item, "text"))
+                tree = self._tree_all
+            elif st == 'Weekly':
+                tree = self._tree_weekly
+            elif st == 'Monthly':
+                tree = self._tree_monthly
+            else:
+                return
 
-                    # toggle user_excluded entry, update tree
+            # get selected item for tree
+            sel_items = tree.selection()
+
+            if len(sel_items) > 0:
+                # get index to Database.statement_entries collection
+                item = sel_items[0]
+                # get text attribute which will be the index of the selected
+                # item in Database.statement_entries
+                ixs = tree.item(item, "text")
+                if len(ixs) > 0:
+
+                    # get statement entry
+                    ix = int(ixs)
                     entry = Database.statement_entries[ix]
-                    entry.user_excluded = not entry.user_excluded
-                    self._tree_all.item(item, values=values_all_tree(entry))
 
+                    # update user_excluded
+                    Database.update_user_excluded(entry)
+
+                    # refresh trees
+                    self.populate_all_entries_tree()
+                    self.populate_weekly_summaries_tree()
+                    self.populate_monthly_summaries_tree()
 
         except AttributeError:
             Logger.log_info('No tab selected')
             pass
             # template = "An exception of type {0} occurred. Arguments:\n{1!r}"
             # message = template.format(type(ex).__name__, ex.args)
-
-
 
     # -----------------------------------------------------------------------
     # initialise GUI
