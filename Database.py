@@ -9,6 +9,8 @@ import copy as copy
 statement_entries: list = []
 weekly_summaries: list = []
 monthly_summaries: list = []
+yearly_spend: int = 0
+yearly_budget: int = 0
 
 # parsed text, list of tuples (valid data: bool, text line: str)
 parsed_text = []
@@ -18,6 +20,15 @@ is_dirty: bool = False
 
 # current max entry sequence no
 seq_no: int = -1
+
+
+# ------------------------------------------------------
+#
+def load_database(filename: str):
+    read_file(filename)
+    generate_weekly_summaries()
+    generate_monthly_summaries()
+    set_dirty(False)
 
 
 # ------------------------------------------------------
@@ -96,7 +107,7 @@ def read_file(file_name: str) -> bool:
         for n in range(1, len(ls)):
             entry = StatementData.StatementEntry()
             if entry.from_csv(ls[n], vers):
-                entry.index = add_statement_entry(statement_entries, entry)
+                entry.lookup = add_statement_entry(statement_entries, entry)
             else:
                 Logger.log_error(f'Error parsing line ({n}) : \'{ls[n]}\'')
                 return False
@@ -217,15 +228,29 @@ def generate_monthly_summaries() -> None:
         calculate_monthly_summary(summary)
         monthly_summaries.append(summary)
 
+    # calculate yearly budget so far
+    global yearly_budget
+    now = datetime.date.today()
+    if now.month >= 4:
+        days = now - datetime.date(now.year, 4, 1)
+    else:
+        days = now - datetime.date(now.year - 1, 4, 1)
+    yearly_budget = 18000 * days.days / 365
+
 
 # ------------------------------------------------------
 def calculate_monthly_summary(summary: StatementData.StatementSummary) -> None:
+    global yearly_spend
     summary.total = 0
     summary.transactions = 0
     for entry in summary.entries:
         if entry.included_monthly and not entry.user_excluded:
             summary.total -= entry.amount
             summary.transactions += 1
+    # reset yearly spend at beginning of april
+    if summary.summary_date.month == 4:
+        yearly_spend = 0
+    yearly_spend += summary.total
 
 
 # ------------------------------------------------------

@@ -1,5 +1,7 @@
 # my ignores
 statement.txt.*
+statement.txt
+statement*.txt
 
 # Editors
 .vscode/

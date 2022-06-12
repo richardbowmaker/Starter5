@@ -89,10 +89,10 @@ def parse_santander_current_account_statement(lines: []) -> bool:
                         # new entry
                         new_count += 1
                         entry.is_new = True
-                        entry.index = n
+                        entry.lookup = n
                     else:
                         entry.is_new = False
-                        entry.index = -1
+                        entry.lookup = -1
 
                     Database.add_parsed_line(True, line)
 
@@ -162,10 +162,10 @@ def parse_santander_credit_card_statement(lines: []) -> bool:
                             # new entry
                             new_count += 1
                             entry.is_new = True
-                            entry.index = n
+                            entry.lookup = n
                         else:
                             entry.is_new = False
-                            entry.index = -1
+                            entry.lookup = -1
 
                         Database.add_parsed_line(True, line)
 
@@ -252,10 +252,10 @@ def parse_cash_plus_statement(lines: []) -> bool:
                             # new entry
                             new_count += 1
                             entry.is_new = True
-                            entry.index = n
+                            entry.lookup = n
                         else:
                             entry.is_new = False
-                            entry.index = -1
+                            entry.lookup = -1
 
 
                         Database.add_parsed_line(True, lines[ln - 2])
@@ -282,16 +282,16 @@ def calculate_week_no(date: datetime.date) -> int:
 
 
 def is_weekly_included(entry: StatementData.StatementEntry) -> bool:
-    return not entry.description.__contains__("LEEDS BUILDING SOC") and \
-           not entry.description.__contains__("CASHPLUS") and \
-           not entry.description.__contains__("EDF ENERGY") and \
-           not entry.description.__contains__("WILTSHIRE COUNCIL") and \
-           not entry.description.__contains__("BT GROUP PLC") and \
-           not entry.description.__contains__("CAMELOT LOTTERY") and \
-           not entry.description.__contains__("BRISTOLWESSEXWATER") and \
-           not entry.description.__contains__("SANTANDERCARDS") and \
-           not entry.description.__contains__("WINDOW PAYNE") and \
-           not entry.description.__contains__("INITIAL BALANCE") and \
+    return not entry.description.upper().__contains__("LEEDS BUILDING SOC") and \
+           not entry.description.upper().__contains__("CASHPLUS") and \
+           not entry.description.upper().__contains__("EDF ENERGY") and \
+           not entry.description.upper().__contains__("WILTSHIRE COUNCIL") and \
+           not entry.description.upper().__contains__("BT GROUP PLC") and \
+           not entry.description.upper().__contains__("CAMELOT LOTTERY") and \
+           not entry.description.upper().__contains__("BRISTOLWESSEXWATER") and \
+           not entry.description.upper().__contains__("SANTANDERCARDS") and \
+           not entry.description.upper().__contains__("WINDOW PAYNE") and \
+           not entry.description.upper().__contains__("INITIAL BALANCE") and \
            entry.amount < 0 and \
            entry.amount > -1000
 

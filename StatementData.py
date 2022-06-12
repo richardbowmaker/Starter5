@@ -157,7 +157,7 @@ class StatementEntry:
         self._is_new = False
         self._user_excluded = False
         # position in Database.statement_entries
-        self._index = -1
+        self._lookup = -1
 
     # -----------------------------------------------------------------------
     def __str__(self) -> str:
@@ -356,12 +356,12 @@ class StatementEntry:
     # -----------------------------------------------------------------------
     # index accessors
     @property
-    def index(self):
-        return self._index
+    def lookup(self):
+        return self._lookup
 
-    @index.setter
-    def index(self, value) -> None:
-        self._index = value
+    @lookup.setter
+    def lookup(self, value) -> None:
+        self._lookup = value
 
     # -----------------------------------------------------------------------
     # month str accessors

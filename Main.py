@@ -4,13 +4,12 @@ import Parsers as Parsers
 import StatementData as StatementData
 import Logger as Logger
 import Database as Database
-
-import datetime as datetime
 import sys
 import tkinter as tk
 from tkinter import messagebox as mb
 from tkinter import ttk
 from tkinter import filedialog as fd
+from pathlib import Path
 
 
 # -----------------------------------------------------------------------
@@ -62,10 +61,9 @@ def fixed_map(style: ttk.Style, option):
 # -----------------------------------------------------------------------
 # create the tree view
 # columns is a list of tuples, ['column_name', column_width]
-#
 def create_tree(frame: tk.Frame, columns: list = []) -> ttk.Treeview:
 
-    # horizontal and vertical scroll bara
+    # horizontal and vertical scroll bar
     scroll_v = tk.Scrollbar(frame, orient=tk.VERTICAL)
     scroll_v.pack(side=tk.RIGHT, fill=tk.Y)
     scroll_h = tk.Scrollbar(frame, orient=tk.HORIZONTAL)
@@ -76,7 +74,7 @@ def create_tree(frame: tk.Frame, columns: list = []) -> ttk.Treeview:
                         yscrollcommand=scroll_v.set,
                         xscrollcommand=scroll_h.set)
     tree.pack(fill=tk.BOTH, expand=True)
-    tree.column('#0', minwidth=25, width=25, stretch=False)
+    tree.column('#0', minwidth=60, width=60, stretch=False)
 
     for n in range(len(columns)):
         tree.column(n, minwidth=columns[n][2], width=columns[n][2], stretch=False)
@@ -122,7 +120,8 @@ class Main:
                     self.populate_all_entries_tree()
                     self.populate_weekly_summaries_tree()
                     self.populate_monthly_summaries_tree()
-                self.populate_parsed_text_tree()
+                    self.populate_parsed_text_tree()
+                    self.log_yearly_spend()
 
         except tk.TclError as ex:
             # clipboard was empty
@@ -141,6 +140,14 @@ class Main:
 
     # -----------------------------------------------------------------------
     # populate weekly summary tree
+    def log_yearly_spend(self) -> None:
+        Logger.log_info(
+            f'Spend £{Database.yearly_spend:,.2f}, Budget £{Database.yearly_budget:,.2f}')
+        Logger.log_info(
+            f'Underspend £{Database.yearly_budget - Database.yearly_spend:,.2f} ({Database.yearly_spend * 100 / Database.yearly_budget:.0f}%)')
+
+    # -----------------------------------------------------------------------
+    # populate weekly summary tree
     def populate_all_entries_tree(self) -> None:
         # clear tree
         self._tree_all.delete(*self._tree_all.get_children())
@@ -152,7 +159,7 @@ class Main:
 
             # store index into data collection as text attribute
             self._tree_all.insert('', tk.END, values=values_all_tree(entry), open=False, tags=tags,
-                                  text=f'{entry.index}')
+                                  text=f'{entry.lookup}')
 
     # -----------------------------------------------------------------------
     # populate weekly summary tree
@@ -174,7 +181,7 @@ class Main:
                     tags += ('new',)
 
                 self._tree_weekly.insert('', tk.END, iid=iid, values=child_values_summary_weekly_tree(entry),
-                                         open=False, tags=tags, text=f'{entry.index}')
+                                         open=False, tags=tags, text=f'{entry.lookup}')
                 self._tree_weekly.move(iid, piid, iid - piid)
                 iid += 1
 
@@ -197,7 +204,7 @@ class Main:
                     tags += ('new',)
 
                 self._tree_monthly.insert('', tk.END, iid=iid, values=child_values_summary_monthly_tree(entry),
-                                          open=False, tags=tags, text=f'{entry.index}')
+                                          open=False, tags=tags, text=f'{entry.lookup}')
                 self._tree_monthly.move(iid, piid, iid - piid)
                 iid += 1
 
@@ -217,14 +224,42 @@ class Main:
     def on_exit(self):
         self._window.destroy()
 
+    # -----------------------------------------------------------------------
+
     def on_save(self):
-        pass
+
+        path = Path(self._filename)
+        fn = fd.asksaveasfilename(parent=self._window,
+                                  title="Select file to save to",
+                                  initialfile=path.name,
+                                  initialdir=path.parent,
+                                  filetypes=(('text files', '*.txt'), ('all files', '*.*')))
+
+        if len(fn) > 0:
+            # save file
+            self._filename = fn
+            Database.write_file(fn)
+            Database.set_dirty(False)
+
+    # -----------------------------------------------------------------------
 
     def on_open(self):
 
-        fff = fd.askopenfilename(parent=self._window,
-                                 title="Please select a file",
-                                 filetypes=(('text files', '*.txt'), ('all files', '*.*')))
+        path = Path(self._filename)
+        fn = fd.askopenfilename(parent=self._window,
+                                title="Select a file to load",
+                                initialfile=path.name,
+                                initialdir=path.parent,
+                                filetypes=(('text files', '*.txt'), ('all files', '*.*')))
+
+        if len(fn) > 0:
+            # load file
+            self._filename = fn
+            Database.load_database(fn)
+            self.populate_all_entries_tree()
+            self.populate_weekly_summaries_tree()
+            self.populate_monthly_summaries_tree()
+            self.log_yearly_spend()
 
     def on_toggle_exclude_entry(self):
 
@@ -265,6 +300,7 @@ class Main:
                     self.populate_all_entries_tree()
                     self.populate_weekly_summaries_tree()
                     self.populate_monthly_summaries_tree()
+                    self.log_yearly_spend()
 
         except AttributeError:
             Logger.log_info('No tab selected')
@@ -279,7 +315,8 @@ class Main:
         # https://docs.python.org/3/library/tkinter.ttk.html#notebook
 
         self._window = tk.Tk()
-        self._window.geometry("1200x600")
+        self._window.geometry("1800x1000")
+        self._window.title('Spend analyser')
 
         self._window.clipboard_clear()
 
@@ -306,9 +343,9 @@ class Main:
         paned_window.pack(fill=tk.BOTH, expand=True)
 
         # Create Frames
-        frame1 = ttk.Frame(paned_window, width=400, height=600, relief=tk.SUNKEN)
+        frame1 = ttk.Frame(paned_window, width=300, height=600, relief=tk.SUNKEN)
         frame2 = ttk.Frame(paned_window, width=100, height=600, relief=tk.SUNKEN)
-        paned_window.add(frame1, weight=4)
+        paned_window.add(frame1, weight=3)
         paned_window.add(frame2, weight=1)
     
         style = ttk.Style()
@@ -352,18 +389,20 @@ class Main:
         Logger.set_logger_listbox(logger)
     
         Logger.log_info(f'Python version {sys.version_info[0]}.{sys.version_info[1]}')
-    
+
+        # workout current directory
+        Logger.log_info(f'sys.path {sys.path}')
+        Logger.log_info(f'sys.executable {sys.executable}')
+
         # read the statement entries from file
-        Database.read_file(self._filename)
-        Database.generate_weekly_summaries()
-        Database.generate_monthly_summaries()
+        Database.load_database(self._filename)
 
         # all entries tree
         columns = [['type',        'Type',         160],
                    ['amount',      'Amount',        75],
                    ['balance',     'Balance',       75],
                    ['date',        'Date',         100],
-                   ['description', 'Description',  350],
+                   ['description', 'Description',  650],
                    ['week_no',     'Week',          50],
                    ['included',    'Included',      40],
                    ['seq_no',      'Seq',           40]]
@@ -380,7 +419,7 @@ class Main:
                    ['amount',       'Amount',        75],
                    ['balance',      'Balance',       75],
                    ['date',         'Date',         100],
-                   ['description',  'Description',  350],
+                   ['description',  'Description',  650],
                    ['included',    'Included',       40],
                    ['seq_no',       'Seq',           40]]
     
@@ -395,18 +434,18 @@ class Main:
                    ['amount',       'Amount',        75],
                    ['balance',      'Balance',       75],
                    ['date',         'Date',         100],
-                   ['description',  'Description',  350],
+                   ['description',  'Description',  650],
                    ['included',     'Included',      40],
                    ['seq_no',       'Seq',           40]]
     
         self._tree_monthly = create_tree(tab_monthly, columns)
         self.populate_monthly_summaries_tree()
+        self.log_yearly_spend()
 
         # parsed data tree view
         columns = [['statement', 'Statement', 900]]
 
         self._tree_parsed_text = create_tree(tab_parsed_text, columns)
-        # self.populate_
 
         # start the timer
         self._window.after(1000, self.on_timer)
