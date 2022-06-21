@@ -2,6 +2,9 @@
 statement.txt.*
 statement.txt
 statement*.txt
+statement*.txt.bak
+santander*.*
+cashplus*.*
 
 # Editors
 .vscode/

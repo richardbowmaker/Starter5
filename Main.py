@@ -6,10 +6,12 @@ import Logger as Logger
 import Database as Database
 import sys
 import tkinter as tk
+import os
 from tkinter import messagebox as mb
 from tkinter import ttk
 from tkinter import filedialog as fd
 from pathlib import Path
+
 
 
 # -----------------------------------------------------------------------
@@ -105,7 +107,13 @@ class Main:
         self._tree_parsed_text = None
         self._tabs = None
         self._clipboard = ''
-        self._filename = 'E:\\_Ricks\\Python\\Starter5\\statement.txt'
+
+        if os.name == 'posix':
+            self._filename = '/media/e/Data/_Ricks/Python/Starter5/statement.txt'
+        elif os.name == 'nt':
+            self._filename = 'E:\\Data\\_Ricks\\Python\\Starter5\\statement.txt'
+        else:
+            self._filename = ''
 
     # -----------------------------------------------------------------------
     # clipboard handler

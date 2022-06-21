@@ -4,6 +4,7 @@ import Database as Database
 import StatementData as StatementData
 import datetime as datetime
 import locale as locale
+import os
 from enum import Enum
 
 
@@ -14,10 +15,12 @@ def parse_statement(s: str) -> bool:
     new_data = False
 
     for line in lines:
-        if line.__contains__('09-01-28 43377166 - 123 CURRENT ACCOUNT'):
+        # if line.__contains__('09-01-28 43377166 - 123 CURRENT ACCOUNT'):
+        if line.__contains__('1|2|3 Current Account earnings'):
             new_data = parse_santander_current_account_statement(lines)
             break
-        if line.__contains__('xxxx xxxx xxxx 3878 - SANTANDER 1 2 3 CASHBACK CARD'):
+        # if line.__contains__('xxxx xxxx xxxx 3878 - SANTANDER 1 2 3 CASHBACK CARD'):
+        if line.__contains__('1|2|3 Credit Card earnings'):
             new_data = parse_santander_credit_card_statement(lines)
             break
         if line.__contains__('CashPlus Online Banking'):
@@ -49,7 +52,11 @@ def parse_santander_current_account_statement(lines: []) -> bool:
         if state == ParseState.PRE_PARSE:
             Database.add_parsed_line(False, line)
 
-            if line == 'Date	Description	Money in	Money out	Balance':
+            # 'Date	Description	Money in	Money out	Balance'
+            if os.name == 'nt' and line == 'Date\tDescription\tMoney in\tMoney out\tBalance':
+                state = ParseState.PARSING
+                continue
+            if os.name == 'posix' and line == 'Date \tDescription \tMoney in \tMoney out \tBalance':
                 state = ParseState.PARSING
                 continue
 
@@ -120,9 +127,13 @@ def parse_santander_credit_card_statement(lines: []) -> bool:
         if state == ParseState.PRE_PARSE:
             Database.add_parsed_line(False, line)
 
-            if line == 'Date	Card no.	Description	Money in	Money out':
+            if os.name == 'nt' and line == 'Date\tCard no.\tDescription\tMoney in\tMoney out':
                 state = ParseState.PARSING
                 continue
+            if os.name == 'posix' and line == 'Date \tCard no. \tDescription \tMoney in \tMoney out':
+                state = ParseState.PARSING
+                continue
+
 
         if state == ParseState.PARSING:
             try:
@@ -229,17 +240,30 @@ def parse_cash_plus_statement(lines: []) -> bool:
                         ln += 2
                         ts = lines[ln].split('\t')
 
-                        if len(ts) == 2:
-                            # debit
-                            entry.amount = -locale.atof(ts[0].replace('£', '').replace(',', ''))
-                            # first entry does not include the balance
-                            if len(ts[1]) > 0:
-                                entry.balance = locale.atof(ts[1].replace('£', '').replace(',', ''))
-                        else:
-                            # credit
-                            entry.amount = locale.atof(ts[0].replace('£', '').replace(',', ''))
-                            if len(ts[2]) > 0:
-                                entry.balance = locale.atof(ts[2].replace('£', '').replace(',', ''))
+                        if os.name == 'posix':
+                            if len(ts[1]) == 0:
+                                # debit
+                                entry.amount = -locale.atof(ts[2].replace('£', '').replace(',', ''))
+                                # first entry does not include the balance
+                                if len(ts[3]) > 0:
+                                    entry.balance = locale.atof(ts[3].replace('£', '').replace(',', ''))
+                            else:
+                                # credit
+                                entry.amount = locale.atof(ts[1].replace('£', '').replace(',', ''))
+                                if len(ts[3]) > 0:
+                                    entry.balance = locale.atof(ts[3].replace('£', '').replace(',', ''))
+                        elif os.name == 'nt':
+                            if len(ts) == 2:
+                                # debit
+                                entry.amount = -locale.atof(ts[0].replace('£', '').replace(',', ''))
+                                # first entry does not include the balance
+                                if len(ts[1]) > 0:
+                                    entry.balance = locale.atof(ts[1].replace('£', '').replace(',', ''))
+                            else:
+                                # credit
+                                entry.amount = locale.atof(ts[0].replace('£', '').replace(',', ''))
+                                if len(ts[2]) > 0:
+                                    entry.balance = locale.atof(ts[2].replace('£', '').replace(',', ''))
 
                         entry.included_weekly = is_weekly_included(entry)
                         entry.included_monthly = is_monthly_included(entry)
@@ -272,7 +296,7 @@ def parse_cash_plus_statement(lines: []) -> bool:
 
         ln += 1
 
-    Logger.log_info(f'Parsed Santander credit card statement, {new_count} of {count} entries are new')
+    Logger.log_info(f'Parsed Cashplus card statement, {new_count} of {count} entries are new')
     return new_count > 0
 
 
